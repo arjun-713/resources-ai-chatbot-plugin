@@ -44,3 +44,19 @@ src/main/webapp/static/*
 .settings
 .classpath
 .project
+
+# Local Reference Documentation (Personal)
+CODEBASE_GUIDE.md
+STUDY_PLAN.md
+chatbot-core/GUIDE.md
+chatbot-core/api/GUIDE.md
+chatbot-core/data/GUIDE.md
+chatbot-core/data/chunking/README.md
+chatbot-core/data/collection/README.md
+chatbot-core/data/preprocessing/README.md
+chatbot-core/rag/GUIDE.md
+chatbot-core/tests/unit/services/test_llm_extraction.py
+docs/GUIDE.md
+frontend/GUIDE.md
+frontend/src/components/README.md
+src/GUIDE.md

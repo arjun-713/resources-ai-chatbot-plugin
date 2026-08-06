@@ -10,6 +10,7 @@ from rag.graph.graph_builder import build_graph, build_graph_from_chunks
 from rag.graph.json_loader import load_json_list
 from rag.graph.models import GraphEntity, GraphEvidence, Triple
 from rag.graph.schema import GraphEntityType, GraphRelationType
+from rag.graph.triple_extractor import deduplicate_triples
 from utils import LoggerFactory
 
 
@@ -174,60 +175,6 @@ def load_update_center_triples(path: Path) -> list[Triple]:
     ]
 
 
-def merge_graph_triples(triples: list[Triple]) -> list[Triple]:
-    """
-    Deduplicate graph relations and resolve metadata dependency conflicts.
-
-    Update Center dependency records are authoritative when they disagree with
-    documentation about required versus optional dependency status. Other
-    relation types from documentation remain available for the same plugin pair.
-
-    Args:
-        triples (list[Triple]): Documentation and metadata triples.
-
-    Returns:
-        list[Triple]: Deterministically ordered unique graph relations.
-    """
-    grouped: dict[tuple[str, str], dict[str, Triple]] = {}
-    for triple in triples:
-        pair = (triple.source.entity_id, triple.target.entity_id)
-        grouped.setdefault(pair, {}).setdefault(triple.relation, triple)
-
-    dependency_relations = {
-        GraphRelationType.DEPENDS_ON.value,
-        GraphRelationType.OPTIONAL_DEPENDS_ON.value,
-    }
-    merged: list[Triple] = []
-
-    for pair in sorted(grouped):
-        relation_map = grouped[pair]
-        metadata_dependencies = [
-            triple
-            for triple in relation_map.values()
-            if triple.evidence.source_data_source == UPDATE_CENTER_DATA_SOURCE
-            and triple.relation in dependency_relations
-        ]
-        if metadata_dependencies:
-            required = next(
-                (
-                    triple
-                    for triple in metadata_dependencies
-                    if triple.relation == GraphRelationType.DEPENDS_ON.value
-                ),
-                metadata_dependencies[0],
-            )
-            relation_map = {
-                relation: triple
-                for relation, triple in relation_map.items()
-                if relation not in dependency_relations
-            }
-            relation_map[required.relation] = required
-
-        merged.extend(relation_map[relation] for relation in sorted(relation_map))
-
-    return merged
-
-
 def run_graph_build(
     plugin_names_path: Path,
     chunks_path: Path,
@@ -257,7 +204,7 @@ def run_graph_build(
     graph, triples = build_graph_from_chunks(chunks, plugin_ids)
     if update_center_path is not None:
         triples.extend(load_update_center_triples(update_center_path))
-    triples = merge_graph_triples(triples)
+    triples = deduplicate_triples(triples)
     graph = build_graph(triples)
 
     report = write_graph_artifacts(

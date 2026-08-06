@@ -15,8 +15,29 @@ from rag.graph.query_parser import (
     GraphQueryMatch,
     parse_graph_query,
 )
-from rag.graph.schema import GraphEntityType
+from rag.graph.schema import (
+    REQUIRED_EVIDENCE_FIELDS,
+    GraphEntityType,
+    has_required_evidence_fields,
+)
 from rag.graph.triple_extractor import PluginLookup, build_plugin_lookup
+
+
+def _has_valid_graph_edge_payload(edge_data: dict) -> bool:
+    """
+    Check whether an edge contains documentation evidence fields.
+
+    Args:
+        edge_data (dict): Edge attributes loaded from the graph artifact.
+
+    Returns:
+        bool: True when all required fields contain non-empty strings.
+    """
+    return has_required_evidence_fields(edge_data) and all(
+        isinstance(edge_data.get(field_name), str)
+        and bool(edge_data[field_name].strip())
+        for field_name in REQUIRED_EVIDENCE_FIELDS
+    )
 
 
 def load_plugin_relation_graph(
@@ -35,7 +56,24 @@ def load_plugin_relation_graph(
     """
     if logger is None:
         return None
-    return load_graph(str(path), logger)
+
+    graph = load_graph(str(path), logger)
+    if graph is None:
+        return None
+
+    invalid_edge_count = sum(
+        not _has_valid_graph_edge_payload(edge_data)
+        for _source_id, _target_id, edge_data in graph.edges(data=True)
+    )
+    if invalid_edge_count:
+        logger.warning(
+            "Plugin graph contains %d edge(s) without documentation evidence. "
+            "Ignoring the graph artifact.",
+            invalid_edge_count,
+        )
+        return None
+
+    return graph
 
 
 def load_query_plugin_lookup(

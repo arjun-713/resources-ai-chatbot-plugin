@@ -196,12 +196,67 @@ def test_run_graph_build_merges_update_center_into_one_graph(tmp_path):
     )
     graph = load_graph(str(paths.graph_path), mock_logger)
 
-    assert report["triple_count"] == 2
-    assert graph.number_of_edges("source-plugin", "target-plugin") == 2
+    assert report["triple_count"] == 1
+    assert graph.number_of_edges("source-plugin", "target-plugin") == 1
     edges = graph.get_edge_data("source-plugin", "target-plugin")
+    edge = next(iter(edges.values()))
+    assert edge["relation"] == "OPTIONAL_DEPENDS_ON"
+    assert edge["source_data_source"] == "jenkins_update_center"
+
+
+def test_run_graph_build_keeps_documentation_conflicts(tmp_path):
+    """Verify dependency precedence does not remove other relation types."""
+    mock_logger = Mock()
+    plugin_names_path = tmp_path / "plugin_names.json"
+    chunks_path = tmp_path / "chunks_plugin_docs.json"
+    update_center_path = tmp_path / "update-center.actual.json"
+    paths = GraphArtifactPaths(
+        graph_path=tmp_path / "graph" / "plugin_graph.json",
+        triples_path=tmp_path / "graph" / "triples.jsonl",
+        report_path=tmp_path / "graph" / "extraction_report.json",
+    )
+    plugin_names_path.write_text(
+        json.dumps(["source-plugin", "target-plugin"]),
+        encoding="utf-8",
+    )
+    chunks_path.write_text(
+        json.dumps(
+            [
+                build_chunk(
+                    "source-plugin",
+                    "This plugin depends on Target Plugin and conflicts with "
+                    "Target Plugin.",
+                )
+            ]
+        ),
+        encoding="utf-8",
+    )
+    update_center_path.write_text(
+        json.dumps(
+            {
+                "plugins": {
+                    "source-plugin": {
+                        "dependencies": [
+                            {"name": "target-plugin", "optional": False}
+                        ]
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    run_graph_build(
+        plugin_names_path=plugin_names_path,
+        chunks_path=chunks_path,
+        artifact_paths=paths,
+        logger=mock_logger,
+        update_center_path=update_center_path,
+    )
+    graph = load_graph(str(paths.graph_path), mock_logger)
+
+    assert graph.number_of_edges("source-plugin", "target-plugin") == 2
     assert {
-        edge["source_data_source"] for edge in edges.values()
-    } == {
-        "jenkins_plugins_documentation",
-        "jenkins_update_center",
-    }
+        edge["relation"]
+        for edge in graph.get_edge_data("source-plugin", "target-plugin").values()
+    } == {"DEPENDS_ON", "CONFLICTS_WITH"}

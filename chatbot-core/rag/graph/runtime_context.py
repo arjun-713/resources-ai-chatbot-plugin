@@ -5,10 +5,10 @@ from pathlib import Path
 
 import networkx as nx
 
-from rag.graph.entity_normalizer import DEFAULT_PLUGIN_NAMES_PATH
+from rag.graph.build_graph_artifacts import DEFAULT_PLUGIN_NAMES_PATH
 from rag.graph.graph_retriever import (
     load_plugin_relation_graph,
-    load_query_plugin_aliases,
+    load_query_plugin_lookup,
     retrieve_graph_relations,
 )
 from rag.graph.graph_store import DEFAULT_PLUGIN_GRAPH_PATH
@@ -18,6 +18,7 @@ from rag.graph.hybrid_context import (
     format_graph_retrieval_result,
     load_graph_context_chunks,
 )
+from rag.graph.triple_extractor import PluginLookup
 
 
 @dataclass(frozen=True)
@@ -27,12 +28,12 @@ class GraphRuntimeContext:
 
     Args:
         graph (nx.MultiDiGraph): Plugin relation graph artifact.
-        plugin_aliases (dict[str, str]): Query-time plugin alias map.
+        plugin_lookup (PluginLookup): Query-time canonical plugin lookup.
         chunk_lookup (dict[str, dict]): Source chunk lookup by chunk ID.
     """
 
     graph: nx.MultiDiGraph
-    plugin_aliases: dict[str, str]
+    plugin_lookup: PluginLookup
     chunk_lookup: dict[str, dict]
 
 
@@ -93,11 +94,11 @@ def load_graph_runtime_context(
         if graph is None:
             return None
 
-        plugin_aliases = load_query_plugin_aliases(plugin_names_path)
+        plugin_lookup = load_query_plugin_lookup(plugin_names_path)
         chunks = load_graph_context_chunks(chunks_path)
         runtime_context = GraphRuntimeContext(
             graph=graph,
-            plugin_aliases=plugin_aliases,
+            plugin_lookup=plugin_lookup,
             chunk_lookup=build_chunk_lookup(chunks),
         )
         _GRAPH_CONTEXT_CACHE[cache_key] = runtime_context
@@ -129,7 +130,7 @@ def build_graph_runtime_context(
 
     result = retrieve_graph_relations(
         query,
-        graph_context.plugin_aliases,
+        graph_context.plugin_lookup,
         graph_context.graph,
     )
     if result is None:

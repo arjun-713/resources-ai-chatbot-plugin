@@ -178,7 +178,7 @@ def test_run_graph_build_merges_update_center_into_one_graph(tmp_path):
                 "plugins": {
                     "source-plugin": {
                         "dependencies": [
-                            {"name": "target-plugin", "optional": True}
+                            {"name": "target-plugin", "optional": False}
                         ]
                     }
                 }
@@ -200,8 +200,8 @@ def test_run_graph_build_merges_update_center_into_one_graph(tmp_path):
     assert graph.number_of_edges("source-plugin", "target-plugin") == 1
     edges = graph.get_edge_data("source-plugin", "target-plugin")
     edge = next(iter(edges.values()))
-    assert edge["relation"] == "OPTIONAL_DEPENDS_ON"
-    assert edge["source_data_source"] == "jenkins_update_center"
+    assert edge["relation"] == "DEPENDS_ON"
+    assert edge["source_data_source"] == "jenkins_plugins_documentation"
 
 
 def test_run_graph_build_keeps_documentation_conflicts(tmp_path):

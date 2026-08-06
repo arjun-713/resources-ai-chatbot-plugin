@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 
 from rag.graph.build_graph_artifacts import (
+    get_update_center_dependencies,
     load_update_center_triples,
     load_plugin_chunks,
     load_plugin_ids,
@@ -144,6 +145,40 @@ def test_load_update_center_triples_preserves_optional_version(tmp_path):
     assert triples[0].relation == "OPTIONAL_DEPENDS_ON"
     assert triples[0].evidence.source_data_source == "jenkins_update_center"
     assert "1.2.3" in triples[0].evidence.evidence
+
+
+def test_get_update_center_dependencies_filters_by_plugin_id(tmp_path):
+    """Verify direct lookup returns only one plugin's dependencies."""
+    snapshot_path = tmp_path / "update-center.actual.json"
+    snapshot_path.write_text(
+        json.dumps(
+            {
+                "plugins": {
+                    "source-plugin": {
+                        "dependencies": [
+                            {"name": "required-plugin"},
+                            {"name": "optional-plugin", "optional": True},
+                        ]
+                    },
+                    "other-plugin": {
+                        "dependencies": [{"name": "unrelated-plugin"}]
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    dependencies = get_update_center_dependencies(snapshot_path, "source-plugin")
+
+    assert [triple.target.entity_id for triple in dependencies] == [
+        "required-plugin",
+        "optional-plugin",
+    ]
+    assert get_update_center_dependencies(snapshot_path, "missing-plugin") == []
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        get_update_center_dependencies(snapshot_path, " ")
 
 
 def test_run_graph_build_merges_update_center_into_one_graph(tmp_path):

@@ -175,6 +175,33 @@ def load_update_center_triples(path: Path) -> list[Triple]:
     ]
 
 
+def get_update_center_dependencies(
+    path: Path,
+    plugin_id: str,
+) -> list[Triple]:
+    """
+    Return direct Update Center dependencies for one canonical plugin ID.
+
+    Args:
+        path (Path): Local update-center.actual.json path.
+        plugin_id (str): Canonical plugin ID to look up.
+
+    Returns:
+        list[Triple]: Matching required and optional dependency triples.
+
+    Raises:
+        ValueError: If the plugin ID is empty.
+    """
+    if not plugin_id.strip():
+        raise ValueError("Plugin ID must not be empty")
+
+    return [
+        triple
+        for triple in load_update_center_triples(path)
+        if triple.source.entity_id == plugin_id
+    ]
+
+
 def run_graph_build(
     plugin_names_path: Path,
     chunks_path: Path,

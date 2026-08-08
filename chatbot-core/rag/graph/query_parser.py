@@ -43,6 +43,14 @@ MULTI_HOP_QUERY_PATTERNS = (
     re.compile(r"\bthrough\b", re.IGNORECASE),
     re.compile(r"\bchain\b", re.IGNORECASE),
 )
+BOOLEAN_QUERY_PATTERN = re.compile(
+    r"^(?:does|is|are|can|could|will|would)\b",
+    re.IGNORECASE,
+)
+COUNT_QUERY_PATTERN = re.compile(
+    r"\b(?:how many|count|number of)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -71,12 +79,16 @@ class GraphQueryMatch:
         query_entity (str): Raw entity text found in the query.
         matched_entity (GraphEntity): Canonical plugin entity matched from the query.
         intent (GraphQueryIntent): Parsed relation intent.
+        plan (GraphQueryPlan): Structured query plan used by later graph stages.
+        entities (tuple[ResolvedQueryEntity, ...]): All resolved plugin mentions.
     """
 
     query: str
     query_entity: str
     matched_entity: GraphEntity
     intent: GraphQueryIntent
+    plan: "GraphQueryPlan"
+    entities: tuple["ResolvedQueryEntity", ...]
 
 
 @dataclass(frozen=True)
@@ -95,6 +107,30 @@ class ResolvedQueryEntity:
     entity: GraphEntity
     start: int
     end: int
+
+
+@dataclass(frozen=True)
+class GraphQueryPlan:
+    """
+    Structured graph retrieval request derived from a user query.
+
+    Attributes:
+        relation_types (tuple[str, ...]): Graph relations to retrieve.
+        direction (str): Traversal direction for the relation lookup.
+        source_entity (GraphEntity | None): Known source when unambiguous.
+        target_entity (GraphEntity | None): Known target when unambiguous.
+        traversal_depth (int): Number of graph hops requested.
+        answer_mode (str): Expected answer shape: list, boolean, or count.
+        matched_rule (str): Coarse rule category used for diagnostics.
+    """
+
+    relation_types: tuple[str, ...]
+    direction: str
+    source_entity: GraphEntity | None
+    target_entity: GraphEntity | None
+    traversal_depth: int
+    answer_mode: str
+    matched_rule: str
 
 
 def normalize_graph_query(query: str) -> str:
@@ -263,6 +299,59 @@ def detect_graph_query_intent(query: str) -> GraphQueryIntent | None:
     )
 
 
+def build_graph_query_plan(
+    query: str,
+    intent: GraphQueryIntent,
+    entities: tuple[ResolvedQueryEntity, ...],
+) -> GraphQueryPlan:
+    """
+    Build a structured graph request from intent and resolved entities.
+
+    Source and target fields are populated only when exactly one entity is
+    present. Multi-entity role assignment remains the responsibility of the
+    structural template parser.
+
+    Args:
+        query (str): Original user query.
+        intent (GraphQueryIntent): Relation and traversal intent.
+        entities (tuple[ResolvedQueryEntity, ...]): Resolved plugin mentions.
+
+    Returns:
+        GraphQueryPlan: Structured request for graph retrieval.
+    """
+    anchor_entity = entities[0].entity if len(entities) == 1 else None
+    source_entity = (
+        anchor_entity if anchor_entity and intent.direction == "outgoing" else None
+    )
+    target_entity = (
+        anchor_entity if anchor_entity and intent.direction == "incoming" else None
+    )
+    if GraphRelationType.CONFLICTS_WITH.value in intent.relation_types:
+        matched_rule = "conflict"
+    elif intent.direction == "incoming":
+        matched_rule = "incoming_dependency"
+    else:
+        matched_rule = "outgoing_dependency"
+
+    normalized_query = normalize_graph_query(query)
+    if COUNT_QUERY_PATTERN.search(normalized_query):
+        answer_mode = "count"
+    elif BOOLEAN_QUERY_PATTERN.search(normalized_query):
+        answer_mode = "boolean"
+    else:
+        answer_mode = "list"
+
+    return GraphQueryPlan(
+        relation_types=intent.relation_types,
+        direction=intent.direction,
+        source_entity=source_entity,
+        target_entity=target_entity,
+        traversal_depth=intent.traversal_depth,
+        answer_mode=answer_mode,
+        matched_rule=matched_rule,
+    )
+
+
 def resolve_query_entity_text(
     text: str,
     plugin_lookup: PluginLookup,
@@ -358,14 +447,16 @@ def parse_graph_query(
     if not intent:
         return None
 
-    entity_match = resolve_query_entity_text(query, plugin_lookup)
-    if not entity_match:
+    entities = resolve_query_entities(query, plugin_lookup)
+    if not entities:
         return None
 
-    query_entity, matched_entity = entity_match
+    first_entity = entities[0]
     return GraphQueryMatch(
         query=query,
-        query_entity=query_entity,
-        matched_entity=matched_entity,
+        query_entity=first_entity.text,
+        matched_entity=first_entity.entity,
         intent=intent,
+        plan=build_graph_query_plan(query, intent, entities),
+        entities=entities,
     )

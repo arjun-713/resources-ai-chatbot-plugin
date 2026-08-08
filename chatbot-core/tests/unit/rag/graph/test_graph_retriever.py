@@ -119,6 +119,25 @@ def test_parse_graph_query_resolves_alias_entity():
     assert query_match.query_entity == "Blue Ocean"
     assert query_match.matched_entity.entity_id == "blueocean"
     assert query_match.intent.direction == "outgoing"
+    assert query_match.plan.source_entity.entity_id == "blueocean"
+    assert query_match.plan.answer_mode == "list"
+    assert query_match.plan.matched_rule == "outgoing_dependency"
+
+
+def test_parse_graph_query_keeps_multi_entity_roles_unassigned():
+    """Verify pairwise entities are retained until structural parsing assigns roles."""
+    query_match = parse_graph_query(
+        "Does Blue Ocean depend on Git?",
+        PLUGIN_LOOKUP,
+    )
+
+    assert [item.entity.entity_id for item in query_match.entities] == [
+        "blueocean",
+        "git",
+    ]
+    assert query_match.plan.source_entity is None
+    assert query_match.plan.target_entity is None
+    assert query_match.plan.answer_mode == "boolean"
 
 
 def test_resolve_query_entities_preserves_multiple_plugin_spans():

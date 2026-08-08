@@ -119,6 +119,38 @@ def test_run_graph_build_writes_artifacts_from_fake_inputs(tmp_path):
     assert graph.number_of_edges("source-plugin", "target-plugin") == 1
 
 
+def test_run_graph_build_includes_plugins_without_dependencies(tmp_path):
+    """Verify known plugin IDs are retained as isolated graph nodes."""
+    mock_logger = Mock()
+    plugin_names_path = tmp_path / "plugin_names.json"
+    chunks_path = tmp_path / "chunks_plugin_docs.json"
+    paths = GraphArtifactPaths(
+        graph_path=tmp_path / "graph" / "plugin_graph.json",
+        triples_path=tmp_path / "graph" / "triples.jsonl",
+        report_path=tmp_path / "graph" / "extraction_report.json",
+    )
+    plugin_names_path.write_text(
+        json.dumps(["source-plugin", "isolated-plugin"]),
+        encoding="utf-8",
+    )
+    chunks_path.write_text(
+        json.dumps([build_chunk("source-plugin", "No dependency relation.")]),
+        encoding="utf-8",
+    )
+
+    report = run_graph_build(
+        plugin_names_path=plugin_names_path,
+        chunks_path=chunks_path,
+        artifact_paths=paths,
+        logger=mock_logger,
+    )
+    graph = load_graph(str(paths.graph_path), mock_logger)
+
+    assert "isolated-plugin" in graph.nodes
+    assert graph.nodes["isolated-plugin"]["entity_type"] == "Plugin"
+    assert report["node_count"] == 2
+
+
 def test_load_update_center_triples_preserves_optional_version(tmp_path):
     """Verify structured dependency metadata becomes a source-grounded triple."""
     snapshot_path = tmp_path / "update-center.actual.json"

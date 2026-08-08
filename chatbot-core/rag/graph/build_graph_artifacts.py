@@ -1,9 +1,13 @@
 """Build GraphRAG plugin graph artifacts from plugin chunks."""
 
 import argparse
+import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
+from urllib.request import urlopen
 
 from rag.graph.graph_artifacts import GraphArtifactPaths, write_graph_artifacts
 from rag.graph.graph_builder import build_graph, build_graph_from_chunks
@@ -17,6 +21,8 @@ from utils import LoggerFactory
 GRAPH_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PLUGIN_NAMES_PATH = GRAPH_ROOT / "data" / "raw" / "plugin_names.json"
 DEFAULT_PLUGIN_CHUNKS_PATH = GRAPH_ROOT / "data" / "processed" / "chunks_plugin_docs.json"
+DEFAULT_UPDATE_CENTER_PATH = GRAPH_ROOT / "data" / "raw" / "update-center.actual.json"
+DEFAULT_UPDATE_CENTER_URL = "https://updates.jenkins.io/update-center.actual.json"
 UPDATE_CENTER_DATA_SOURCE = "jenkins_update_center"
 
 
@@ -80,11 +86,8 @@ def load_plugin_chunks(path: Path) -> list[dict]:
     return [chunk for chunk in chunks if is_valid_plugin_chunk(chunk)]
 
 
-def _load_update_center_plugins(path: Path) -> dict[str, Any]:
-    """Load and validate the plugin map from a local snapshot."""
-    with path.open(encoding="utf-8") as json_file:
-        snapshot = json.load(json_file)
-
+def _validate_update_center_plugins(snapshot: object) -> dict[str, Any]:
+    """Validate and return the plugin map from an Update Center snapshot."""
     plugins = snapshot.get("plugins") if isinstance(snapshot, dict) else None
     if not isinstance(plugins, dict):
         raise ValueError("Update Center snapshot must contain a plugins map")
@@ -113,6 +116,58 @@ def _load_update_center_plugins(path: Path) -> dict[str, Any]:
                 raise ValueError(f"Dependency version is invalid: {source_id}")
 
     return plugins
+
+
+def _load_update_center_plugins(path: Path) -> dict[str, Any]:
+    """Load and validate the plugin map from a local snapshot."""
+    with path.open(encoding="utf-8") as json_file:
+        snapshot = json.load(json_file)
+
+    return _validate_update_center_plugins(snapshot)
+
+
+def fetch_update_center_snapshot(
+    destination: Path,
+    url: str = DEFAULT_UPDATE_CENTER_URL,
+    timeout: int = 30,
+) -> str:
+    """
+    Fetch, validate, and atomically replace a local Update Center snapshot.
+
+    Args:
+        destination (Path): Local path to replace with the validated snapshot.
+        url (str): Update Center endpoint to fetch.
+        timeout (int): Network timeout in seconds.
+
+    Returns:
+        str: SHA-256 checksum of the downloaded snapshot.
+
+    Raises:
+        ValueError: If the downloaded JSON is not a valid snapshot.
+    """
+    with urlopen(url, timeout=timeout) as response:
+        snapshot_bytes = response.read()
+
+    snapshot = json.loads(snapshot_bytes)
+    _validate_update_center_plugins(snapshot)
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            delete=False,
+        ) as temporary_file:
+            temporary_file.write(snapshot_bytes)
+            temporary_path = temporary_file.name
+        os.replace(temporary_path, destination)
+    finally:
+        if temporary_path is not None and os.path.exists(temporary_path):
+            os.unlink(temporary_path)
+
+    return hashlib.sha256(snapshot_bytes).hexdigest()
 
 
 def _build_update_center_triple(
@@ -279,6 +334,16 @@ def parse_args() -> argparse.Namespace:
         help="Optional local update-center.actual.json to merge into the graph.",
     )
     parser.add_argument(
+        "--refresh-update-center",
+        action="store_true",
+        help="Fetch and validate a fresh Update Center snapshot before building.",
+    )
+    parser.add_argument(
+        "--update-center-url",
+        default=DEFAULT_UPDATE_CENTER_URL,
+        help="Update Center URL used with --refresh-update-center.",
+    )
+    parser.add_argument(
         "--graph-path",
         type=Path,
         default=GraphArtifactPaths().graph_path,
@@ -312,12 +377,25 @@ def main() -> None:
         report_path=args.report_path,
     )
 
+    update_center_path = args.update_center_path
+    if args.refresh_update_center:
+        update_center_path = update_center_path or DEFAULT_UPDATE_CENTER_PATH
+        checksum = fetch_update_center_snapshot(
+            update_center_path,
+            url=args.update_center_url,
+        )
+        logger.info(
+            "Fetched Update Center snapshot to %s (sha256=%s).",
+            update_center_path,
+            checksum,
+        )
+
     run_graph_build(
         plugin_names_path=args.plugin_names_path,
         chunks_path=args.chunks_path,
         artifact_paths=artifact_paths,
         logger=logger,
-        update_center_path=args.update_center_path,
+        update_center_path=update_center_path,
     )
 
 

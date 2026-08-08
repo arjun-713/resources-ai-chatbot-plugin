@@ -6,6 +6,8 @@ from rag.graph.graph_retriever import retrieve_graph_relations
 from rag.graph.hybrid_context import build_chunk_lookup, format_graph_retrieval_result
 from rag.graph.query_parser import (
     detect_graph_query_intent,
+    detect_graph_query_direction,
+    detect_graph_relation_types,
     normalize_graph_query,
     parse_graph_query,
     resolve_query_entities,
@@ -76,6 +78,20 @@ def test_detect_graph_query_intents():
     assert reverse.direction == "incoming"
     assert conflict.direction == "both"
     assert multi_hop.traversal_depth == 2
+
+
+def test_detect_graph_relation_and_direction_separately():
+    """Verify relation family and traversal direction are independent results."""
+    dependency_query = "Which plugins depend on Git Plugin?"
+    conflict_query = "Which plugins conflict with Legacy Plugin?"
+
+    assert detect_graph_relation_types(dependency_query) == (
+        "DEPENDS_ON",
+        "OPTIONAL_DEPENDS_ON",
+    )
+    assert detect_graph_query_direction(dependency_query) == "incoming"
+    assert detect_graph_relation_types(conflict_query) == ("CONFLICTS_WITH",)
+    assert detect_graph_query_direction(conflict_query) == "both"
 
 
 def test_normalize_graph_query_wording():

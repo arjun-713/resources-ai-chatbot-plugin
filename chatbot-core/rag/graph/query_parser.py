@@ -81,7 +81,15 @@ class GraphQueryMatch:
 
 @dataclass(frozen=True)
 class ResolvedQueryEntity:
-    """A canonical plugin entity together with its span in the raw query."""
+    """
+    A canonical plugin entity together with its span in the raw query.
+
+    Attributes:
+        text (str): Exact entity text copied from the original query.
+        entity (GraphEntity): Canonical graph entity resolved from the text.
+        start (int): Inclusive character offset of the entity in the query.
+        end (int): Exclusive character offset of the entity in the query.
+    """
 
     text: str
     entity: GraphEntity
@@ -145,6 +153,87 @@ def build_query_entity(plugin_id: str) -> GraphEntity:
     )
 
 
+def detect_graph_relation_types(query: str) -> tuple[str, ...] | None:
+    """
+    Detect the relationship family requested by a graph query.
+
+    Args:
+        query (str): User query text.
+
+    Returns:
+        tuple[str, ...] | None: Requested graph relation types, if recognized.
+    """
+    normalized_query = normalize_graph_query(query)
+    return _detect_relation_types(normalized_query)
+
+
+def detect_graph_query_direction(query: str) -> str | None:
+    """
+    Detect the traversal direction requested by a graph query.
+
+    Args:
+        query (str): User query text.
+
+    Returns:
+        str | None: Requested traversal direction, if recognized.
+    """
+    normalized_query = normalize_graph_query(query)
+    return _detect_query_direction(normalized_query)
+
+
+def _detect_relation_types(normalized_query: str) -> tuple[str, ...] | None:
+    """
+    Detect the relationship family without deciding traversal direction.
+
+    Args:
+        normalized_query (str): Query text after mechanical normalization.
+
+    Returns:
+        tuple[str, ...] | None: Relation types requested by the query, or None
+        when no supported relationship wording is present.
+    """
+    if any(pattern.search(normalized_query) for pattern in CONFLICT_QUERY_PATTERNS):
+        return (GraphRelationType.CONFLICTS_WITH.value,)
+
+    if any(
+        pattern.search(normalized_query)
+        for pattern in (*DEPENDENCY_QUERY_PATTERNS, *REVERSE_DEPENDENCY_QUERY_PATTERNS)
+    ):
+        return (
+            GraphRelationType.DEPENDS_ON.value,
+            GraphRelationType.OPTIONAL_DEPENDS_ON.value,
+        )
+
+    return None
+
+
+def _detect_query_direction(normalized_query: str) -> str | None:
+    """
+    Detect traversal direction independently from relation type.
+
+    Args:
+        normalized_query (str): Query text after mechanical normalization.
+
+    Returns:
+        str | None: ``outgoing`` for dependencies of the named plugin,
+        ``incoming`` for plugins related to the named target, ``both`` for
+        conflicts, or None when direction is not recognized.
+    """
+    if any(pattern.search(normalized_query) for pattern in CONFLICT_QUERY_PATTERNS):
+        return "both"
+
+    if any(
+        pattern.search(normalized_query)
+        for pattern in REVERSE_DEPENDENCY_QUERY_PATTERNS
+    ):
+        return "incoming"
+
+    if any(pattern.search(normalized_query) for pattern in DEPENDENCY_QUERY_PATTERNS):
+        return "outgoing"
+
+    return None
+
+
 def detect_graph_query_intent(query: str) -> GraphQueryIntent | None:
     """
     Detect relation intent from a user query.
@@ -162,37 +251,16 @@ def detect_graph_query_intent(query: str) -> GraphQueryIntent | None:
         else 1
     )
 
-    if any(pattern.search(normalized_query) for pattern in CONFLICT_QUERY_PATTERNS):
-        return GraphQueryIntent(
-            relation_types=(GraphRelationType.CONFLICTS_WITH.value,),
-            direction="both",
-            traversal_depth=traversal_depth,
-        )
+    relation_types = _detect_relation_types(normalized_query)
+    direction = _detect_query_direction(normalized_query)
+    if relation_types is None or direction is None:
+        return None
 
-    if any(
-        pattern.search(normalized_query)
-        for pattern in REVERSE_DEPENDENCY_QUERY_PATTERNS
-    ):
-        return GraphQueryIntent(
-            relation_types=(
-                GraphRelationType.DEPENDS_ON.value,
-                GraphRelationType.OPTIONAL_DEPENDS_ON.value,
-            ),
-            direction="incoming",
-            traversal_depth=traversal_depth,
-        )
-
-    if any(pattern.search(normalized_query) for pattern in DEPENDENCY_QUERY_PATTERNS):
-        return GraphQueryIntent(
-            relation_types=(
-                GraphRelationType.DEPENDS_ON.value,
-                GraphRelationType.OPTIONAL_DEPENDS_ON.value,
-            ),
-            direction="outgoing",
-            traversal_depth=traversal_depth,
-        )
-
-    return None
+    return GraphQueryIntent(
+        relation_types=relation_types,
+        direction=direction,
+        traversal_depth=traversal_depth,
+    )
 
 
 def resolve_query_entity_text(

@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 from urllib.request import urlopen
 
+import networkx as nx
+
 from rag.graph.graph_artifacts import GraphArtifactPaths, write_graph_artifacts
 from rag.graph.graph_builder import build_graph, build_graph_from_chunks
 from rag.graph.json_loader import load_json_list
@@ -257,6 +259,20 @@ def get_update_center_dependencies(
     ]
 
 
+def _add_plugin_nodes(graph: nx.MultiDiGraph, plugin_ids: list[str]) -> None:
+    """Add known plugin IDs that may not participate in a relation."""
+    graph.add_nodes_from(
+        (
+            plugin_id,
+            {
+                "name": plugin_id,
+                "entity_type": GraphEntityType.PLUGIN.value,
+            },
+        )
+        for plugin_id in plugin_ids
+    )
+
+
 def run_graph_build(
     plugin_names_path: Path,
     chunks_path: Path,
@@ -284,10 +300,18 @@ def run_graph_build(
     logger.info("Loaded %d plugin chunks from %s.", len(chunks), chunks_path)
 
     graph, triples = build_graph_from_chunks(chunks, plugin_ids)
+    known_plugin_ids = set(plugin_ids)
     if update_center_path is not None:
-        triples.extend(load_update_center_triples(update_center_path))
+        update_center_plugins = _load_update_center_plugins(update_center_path)
+        known_plugin_ids.update(update_center_plugins)
+        triples.extend(
+            _build_update_center_triple(source_id, dependency)
+            for source_id, plugin in update_center_plugins.items()
+            for dependency in plugin.get("dependencies", [])
+        )
     triples = deduplicate_triples(triples)
     graph = build_graph(triples)
+    _add_plugin_nodes(graph, sorted(known_plugin_ids))
 
     report = write_graph_artifacts(
         graph,

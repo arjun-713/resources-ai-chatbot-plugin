@@ -1,11 +1,13 @@
 """Unit tests for GraphRAG graph build entrypoint."""
 
 import json
-from unittest.mock import Mock
+import hashlib
+from unittest.mock import Mock, patch
 
 import pytest
 
 from rag.graph.build_graph_artifacts import (
+    fetch_update_center_snapshot,
     get_update_center_dependencies,
     load_update_center_triples,
     load_plugin_chunks,
@@ -179,6 +181,48 @@ def test_get_update_center_dependencies_filters_by_plugin_id(tmp_path):
 
     with pytest.raises(ValueError, match="must not be empty"):
         get_update_center_dependencies(snapshot_path, " ")
+
+
+def test_fetch_update_center_snapshot_replaces_valid_file(tmp_path):
+    """Verify a valid downloaded snapshot is written with its checksum."""
+    destination = tmp_path / "update-center.actual.json"
+    payload = json.dumps({"plugins": {"source-plugin": {"dependencies": []}}})
+    response = Mock()
+    response.read.return_value = payload.encode()
+    response.__enter__.return_value = response
+    with patch(
+        "rag.graph.build_graph_artifacts.urlopen",
+        return_value=response,
+    ):
+        checksum = fetch_update_center_snapshot(
+            destination,
+            url="https://example.test",
+        )
+
+    assert json.loads(destination.read_text(encoding="utf-8")) == json.loads(payload)
+    assert checksum == hashlib.sha256(payload.encode()).hexdigest()
+
+
+def test_fetch_update_center_snapshot_preserves_existing_file_on_invalid_data(
+    tmp_path,
+):
+    """Verify invalid downloaded data cannot replace an existing snapshot."""
+    destination = tmp_path / "update-center.actual.json"
+    destination.write_text("existing snapshot", encoding="utf-8")
+    response = Mock()
+    response.read.return_value = b'{"plugins": []}'
+    response.__enter__.return_value = response
+    with patch(
+        "rag.graph.build_graph_artifacts.urlopen",
+        return_value=response,
+    ):
+        with pytest.raises(ValueError, match="plugins map"):
+            fetch_update_center_snapshot(
+                destination,
+                url="https://example.test",
+            )
+
+    assert destination.read_text(encoding="utf-8") == "existing snapshot"
 
 
 def test_run_graph_build_merges_update_center_into_one_graph(tmp_path):

@@ -132,6 +132,7 @@ def _split_structural_section(section: str) -> list[str]:
     current_lines: list[str] = []
 
     def flush_lines() -> None:
+        """Flush the current soft-wrapped lines into structural spans."""
         if not current_lines:
             return
         joined_text = " ".join(current_lines)

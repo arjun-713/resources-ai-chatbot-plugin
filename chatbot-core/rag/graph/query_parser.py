@@ -13,6 +13,8 @@ from rag.graph.triple_extractor import (
 
 
 QUERY_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9+._-]*")
+QUERY_WHITESPACE_PATTERN = re.compile(r"\s+")
+QUERY_PUNCTUATION_PATTERN = re.compile(r"[?!,:;]+")
 MAX_QUERY_ENTITY_TOKENS = 8
 
 DEPENDENCY_QUERY_PATTERNS = (
@@ -77,6 +79,45 @@ class GraphQueryMatch:
     intent: GraphQueryIntent
 
 
+def normalize_graph_query(query: str) -> str:
+    """
+    Normalize user wording for graph-intent matching.
+
+    The original query remains unchanged for plugin entity resolution.
+
+    Args:
+        query (str): Raw user query.
+
+    Returns:
+        str: Normalized query text used by intent rules.
+    """
+    normalized_query = query.translate(
+        str.maketrans(
+            {
+                "\u2018": "'",
+                "\u2019": "'",
+                "\u2010": "-",
+                "\u2011": "-",
+                "\u2013": "-",
+                "\u2014": "-",
+            }
+        )
+    ).lower()
+
+    normalized_query = re.sub(
+        r"\bplug[\s-]?ins\b",
+        "plugins",
+        normalized_query,
+    )
+    normalized_query = re.sub(
+        r"\bplug[\s-]?in\b",
+        "plugin",
+        normalized_query,
+    )
+    normalized_query = QUERY_PUNCTUATION_PATTERN.sub(" ", normalized_query)
+    return QUERY_WHITESPACE_PATTERN.sub(" ", normalized_query).strip()
+
+
 def build_query_entity(plugin_id: str) -> GraphEntity:
     """
     Build a plugin graph entity from a canonical plugin ID.
@@ -104,21 +145,24 @@ def detect_graph_query_intent(query: str) -> GraphQueryIntent | None:
     Returns:
         GraphQueryIntent | None: Parsed graph intent, if the query is relational.
     """
-    query_lower = query.lower()
+    normalized_query = normalize_graph_query(query)
     traversal_depth = (
         2
-        if any(pattern.search(query_lower) for pattern in MULTI_HOP_QUERY_PATTERNS)
+        if any(pattern.search(normalized_query) for pattern in MULTI_HOP_QUERY_PATTERNS)
         else 1
     )
 
-    if any(pattern.search(query_lower) for pattern in CONFLICT_QUERY_PATTERNS):
+    if any(pattern.search(normalized_query) for pattern in CONFLICT_QUERY_PATTERNS):
         return GraphQueryIntent(
             relation_types=(GraphRelationType.CONFLICTS_WITH.value,),
             direction="both",
             traversal_depth=traversal_depth,
         )
 
-    if any(pattern.search(query_lower) for pattern in REVERSE_DEPENDENCY_QUERY_PATTERNS):
+    if any(
+        pattern.search(normalized_query)
+        for pattern in REVERSE_DEPENDENCY_QUERY_PATTERNS
+    ):
         return GraphQueryIntent(
             relation_types=(
                 GraphRelationType.DEPENDS_ON.value,
@@ -128,7 +172,7 @@ def detect_graph_query_intent(query: str) -> GraphQueryIntent | None:
             traversal_depth=traversal_depth,
         )
 
-    if any(pattern.search(query_lower) for pattern in DEPENDENCY_QUERY_PATTERNS):
+    if any(pattern.search(normalized_query) for pattern in DEPENDENCY_QUERY_PATTERNS):
         return GraphQueryIntent(
             relation_types=(
                 GraphRelationType.DEPENDS_ON.value,

@@ -4,7 +4,11 @@ import networkx as nx
 
 from rag.graph.graph_retriever import retrieve_graph_relations
 from rag.graph.hybrid_context import build_chunk_lookup, format_graph_retrieval_result
-from rag.graph.query_parser import detect_graph_query_intent, parse_graph_query
+from rag.graph.query_parser import (
+    detect_graph_query_intent,
+    normalize_graph_query,
+    parse_graph_query,
+)
 from rag.graph.schema import GraphEntityType, GraphRelationType
 from rag.graph.triple_extractor import build_plugin_lookup
 
@@ -71,6 +75,22 @@ def test_detect_graph_query_intents():
     assert reverse.direction == "incoming"
     assert conflict.direction == "both"
     assert multi_hop.traversal_depth == 2
+
+
+def test_normalize_graph_query_wording():
+    """Verify graph-query formatting is normalized without changing meaning."""
+    assert normalize_graph_query(
+        "  Which  PLUG-INS are dependent upon Credentials?!  "
+    ) == "which plugins are dependent upon credentials"
+    assert normalize_graph_query(
+        "What are Git\u2019s dependencies?"
+    ) == "what are git's dependencies"
+    assert normalize_graph_query(
+        "Which plugins rely upon Credentials?"
+    ) == "which plugins rely upon credentials"
+    assert normalize_graph_query(
+        "Does Git-Client depend upon Credentials?"
+    ) == "does git-client depend upon credentials"
 
 
 def test_parse_graph_query_resolves_alias_entity():

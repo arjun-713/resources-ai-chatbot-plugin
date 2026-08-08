@@ -299,16 +299,37 @@ def run_graph_build(
     logger.info("Loaded %d plugin IDs from %s.", len(plugin_ids), plugin_names_path)
     logger.info("Loaded %d plugin chunks from %s.", len(chunks), chunks_path)
 
-    graph, triples = build_graph_from_chunks(chunks, plugin_ids)
+    _, documentation_triples = build_graph_from_chunks(chunks, plugin_ids)
     known_plugin_ids = set(plugin_ids)
+    update_center_triples: list[Triple] = []
     if update_center_path is not None:
         update_center_plugins = _load_update_center_plugins(update_center_path)
         known_plugin_ids.update(update_center_plugins)
-        triples.extend(
+        update_center_triples = [
             _build_update_center_triple(source_id, dependency)
             for source_id, plugin in update_center_plugins.items()
             for dependency in plugin.get("dependencies", [])
+        ]
+
+    update_center_keys = {
+        (
+            triple.source.entity_id,
+            triple.relation,
+            triple.target.entity_id,
         )
+        for triple in update_center_triples
+    }
+    triples = [
+        triple
+        for triple in documentation_triples
+        if (
+            triple.source.entity_id,
+            triple.relation,
+            triple.target.entity_id,
+        )
+        not in update_center_keys
+    ]
+    triples.extend(update_center_triples)
     triples = deduplicate_triples(triples)
     graph = build_graph(triples)
     _add_plugin_nodes(graph, sorted(known_plugin_ids))

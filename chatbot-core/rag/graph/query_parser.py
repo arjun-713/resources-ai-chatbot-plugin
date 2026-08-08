@@ -79,6 +79,16 @@ class GraphQueryMatch:
     intent: GraphQueryIntent
 
 
+@dataclass(frozen=True)
+class ResolvedQueryEntity:
+    """A canonical plugin entity together with its span in the raw query."""
+
+    text: str
+    entity: GraphEntity
+    start: int
+    end: int
+
+
 def normalize_graph_query(query: str) -> str:
     """
     Normalize user wording for graph-intent matching.
@@ -199,18 +209,67 @@ def resolve_query_entity_text(
     Returns:
         tuple[str, GraphEntity] | None: Matched text and canonical plugin entity.
     """
-    tokens = QUERY_TOKEN_PATTERN.findall(text)
-    max_length = min(len(tokens), MAX_QUERY_ENTITY_TOKENS)
+    entities = resolve_query_entities(text, plugin_lookup)
+    if not entities:
+        return None
 
-    for token_count in range(max_length, 0, -1):
-        for start_index in range(len(tokens) - token_count + 1):
-            lookup_phrase = " ".join(tokens[start_index : start_index + token_count])
+    entity = entities[0]
+    return entity.text, entity.entity
+
+
+def resolve_query_entities(
+    text: str,
+    plugin_lookup: PluginLookup,
+) -> tuple[ResolvedQueryEntity, ...]:
+    """
+    Resolve every known plugin mention and preserve its raw-query span.
+
+    Args:
+        text (str): Candidate query text.
+        plugin_lookup (PluginLookup): Canonical plugin lookup built from IDs.
+
+    Returns:
+        tuple[ResolvedQueryEntity, ...]: Ordered, non-overlapping plugin mentions.
+    """
+    tokens = list(QUERY_TOKEN_PATTERN.finditer(text))
+    resolved_entities: list[ResolvedQueryEntity] = []
+    occupied_token_indexes: set[int] = set()
+
+    for start_index, _token in enumerate(tokens):
+        if start_index in occupied_token_indexes:
+            continue
+
+        for token_count in range(
+            min(MAX_QUERY_ENTITY_TOKENS, len(tokens) - start_index),
+            0,
+            -1,
+        ):
+            token_indexes = range(start_index, start_index + token_count)
+            if any(index in occupied_token_indexes for index in token_indexes):
+                continue
+
+            lookup_phrase = " ".join(
+                tokens[index].group() for index in token_indexes
+            )
+            target_id = None
             for variant in build_candidate_variants(lookup_phrase):
                 target_id = resolve_plugin_id(variant, plugin_lookup)
                 if target_id:
-                    return lookup_phrase, build_query_entity(target_id)
+                    break
+            if target_id:
+                end_token = tokens[start_index + token_count - 1]
+                resolved_entities.append(
+                    ResolvedQueryEntity(
+                        text=text[_token.start() : end_token.end()],
+                        entity=build_query_entity(target_id),
+                        start=_token.start(),
+                        end=end_token.end(),
+                    )
+                )
+                occupied_token_indexes.update(token_indexes)
+                break
 
-    return None
+    return tuple(resolved_entities)
 
 
 def parse_graph_query(

@@ -8,6 +8,7 @@ from rag.graph.query_parser import (
     detect_graph_query_intent,
     normalize_graph_query,
     parse_graph_query,
+    resolve_query_entities,
 )
 from rag.graph.schema import GraphEntityType, GraphRelationType
 from rag.graph.triple_extractor import build_plugin_lookup
@@ -102,6 +103,24 @@ def test_parse_graph_query_resolves_alias_entity():
     assert query_match.query_entity == "Blue Ocean"
     assert query_match.matched_entity.entity_id == "blueocean"
     assert query_match.intent.direction == "outgoing"
+
+
+def test_resolve_query_entities_preserves_multiple_plugin_spans():
+    """Verify all known plugins are resolved with positions in the raw query."""
+    query = "Can CloverPHP be installed with Clover?"
+    plugin_lookup = build_plugin_lookup(("cloverphp", "clover"))
+
+    entities = resolve_query_entities(query, plugin_lookup)
+
+    assert [entity.entity.entity_id for entity in entities] == [
+        "cloverphp",
+        "clover",
+    ]
+    assert [query[entity.start : entity.end] for entity in entities] == [
+        "CloverPHP",
+        "Clover",
+    ]
+    assert all(entity.start < entity.end for entity in entities)
 
 
 def test_retrieve_graph_relations_handles_dependency_directions():

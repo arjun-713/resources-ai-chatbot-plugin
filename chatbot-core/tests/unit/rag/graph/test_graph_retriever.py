@@ -173,6 +173,101 @@ def test_retrieve_graph_relations_handles_conflicts_and_fallback():
     ) is None
 
 
+def test_retrieve_graph_relations_honors_pairwise_order():
+    """Return only the ordered dependency edge requested by a pairwise plan."""
+    graph = build_test_graph()
+    graph.add_edge(
+        "git",
+        "blueocean",
+        relation=GraphRelationType.DEPENDS_ON.value,
+        source_chunk_id="chunk-git-blue",
+        source_title="Git",
+        source_data_source="jenkins_plugins_documentation",
+        evidence="Git depends on Blue Ocean.",
+    )
+
+    result = retrieve_graph_relations(
+        "Does Blue Ocean depend on Git?",
+        PLUGIN_LOOKUP,
+        graph,
+    )
+
+    assert [(item.source.entity_id, item.target.entity_id) for item in result.relations] == [
+        ("blueocean", "git")
+    ]
+
+
+def test_retrieve_graph_relations_honors_depth_and_relation_filter():
+    """Apply multi-hop depth and required-versus-optional edge filters."""
+    indirect_graph = build_test_graph()
+    indirect_graph.add_edge(
+        "git",
+        "workflow",
+        relation=GraphRelationType.DEPENDS_ON.value,
+        source_chunk_id="chunk-git-workflow",
+        source_title="Git",
+        source_data_source="jenkins_plugins_documentation",
+        evidence="Git depends on Workflow.",
+    )
+    required_graph = build_test_graph()
+    required_graph.add_edge(
+        "blueocean",
+        "workflow",
+        relation=GraphRelationType.OPTIONAL_DEPENDS_ON.value,
+        source_chunk_id="chunk-blue-workflow",
+        source_title="Blue Ocean",
+        source_data_source="jenkins_plugins_documentation",
+        evidence="Blue Ocean optionally depends on Workflow.",
+    )
+
+    indirect = retrieve_graph_relations(
+        "What does Blue Ocean indirectly depend on?",
+        PLUGIN_LOOKUP,
+        indirect_graph,
+    )
+    required = retrieve_graph_relations(
+        "What does Blue Ocean require?",
+        PLUGIN_LOOKUP,
+        required_graph,
+    )
+
+    assert indirect.traversal_depth == 2
+    assert [
+        (item.source.entity_id, item.target.entity_id)
+        for item in indirect.relations
+    ] == [("blueocean", "git"), ("git", "workflow")]
+    assert [item.relation for item in required.relations] == [
+        GraphRelationType.DEPENDS_ON.value
+    ]
+
+
+def test_retrieve_graph_relations_treats_conflicts_as_symmetric():
+    """Match a conflict when the stored edge is reversed from the query."""
+    graph = build_test_graph()
+    graph.remove_edge("blueocean", "legacy-plugin", key=0)
+    graph.add_edge(
+        "legacy-plugin",
+        "blueocean",
+        relation=GraphRelationType.CONFLICTS_WITH.value,
+        source_chunk_id="chunk-legacy-blue",
+        source_title="Legacy Plugin",
+        source_data_source="jenkins_plugins_documentation",
+        evidence="Legacy Plugin conflicts with Blue Ocean.",
+    )
+
+    result = retrieve_graph_relations(
+        "Does Blue Ocean conflict with Legacy Plugin?",
+        PLUGIN_LOOKUP,
+        graph,
+    )
+
+    assert len(result.relations) == 1
+    assert {
+        result.relations[0].source.entity_id,
+        result.relations[0].target.entity_id,
+    } == {"blueocean", "legacy-plugin"}
+
+
 def test_format_graph_retrieval_result_includes_source_chunk_context():
     """Verify graph context includes relation evidence and source chunk text."""
     result = retrieve_graph_relations(

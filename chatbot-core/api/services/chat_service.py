@@ -515,13 +515,14 @@ async def generate_answer_stream(
     Yields:
         str: Individual tokens
     """
-    if llm_provider is None:
+    provider = get_current_provider() or llm_provider
+    if provider is None:
         logger.warning(
             "LLM provider not available - returning fallback response")
         yield "LLM is not available. Please install llama-cpp-python and configure a model."
         return
     try:
-        async for token in llm_provider.generate_stream(
+        async for token in provider.generate_stream(
             prompt=prompt,
             max_tokens=max_tokens or llm_config["max_tokens"]
         ):

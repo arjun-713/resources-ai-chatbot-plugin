@@ -12,6 +12,7 @@ from rag.graph.build_graph_artifacts import (
     load_update_center_triples,
     load_plugin_chunks,
     load_plugin_ids,
+    refresh_graph_if_stale,
     run_graph_build,
 )
 from rag.graph.graph_artifacts import GraphArtifactPaths
@@ -376,3 +377,37 @@ def test_run_graph_build_keeps_documentation_conflicts(tmp_path):
         edge["relation"]
         for edge in graph.get_edge_data("source-plugin", "target-plugin").values()
     } == {"DEPENDS_ON", "CONFLICTS_WITH"}
+
+
+def test_refresh_graph_skips_fresh_artifact(tmp_path):
+    """Skip refresh work when the graph artifact is fresh."""
+    paths = GraphArtifactPaths(
+        graph_path=tmp_path / "graph" / "plugin_graph.json",
+        triples_path=tmp_path / "graph" / "triples.jsonl",
+        report_path=tmp_path / "graph" / "report.json",
+    )
+    paths.graph_path.parent.mkdir()
+    paths.graph_path.write_text("{}", encoding="utf-8")
+
+    with patch("rag.graph.build_graph_artifacts.fetch_update_center_snapshot") as fetch:
+        refresh_graph_if_stale(Mock(), artifact_paths=paths)
+
+    fetch.assert_not_called()
+
+
+def test_refresh_graph_rebuilds_missing_artifact(tmp_path):
+    """Fetch Update Center data and rebuild when the graph is missing."""
+    paths = GraphArtifactPaths(
+        graph_path=tmp_path / "graph" / "plugin_graph.json",
+        triples_path=tmp_path / "graph" / "triples.jsonl",
+        report_path=tmp_path / "graph" / "report.json",
+    )
+
+    with (
+        patch("rag.graph.build_graph_artifacts.fetch_update_center_snapshot") as fetch,
+        patch("rag.graph.build_graph_artifacts.run_graph_build") as build,
+    ):
+        refresh_graph_if_stale(Mock(), artifact_paths=paths)
+
+    fetch.assert_called_once()
+    build.assert_called_once()

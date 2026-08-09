@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 from urllib.request import urlopen
@@ -26,6 +27,7 @@ DEFAULT_PLUGIN_CHUNKS_PATH = GRAPH_ROOT / "data" / "processed" / "chunks_plugin_
 DEFAULT_UPDATE_CENTER_PATH = GRAPH_ROOT / "data" / "raw" / "update-center.actual.json"
 DEFAULT_UPDATE_CENTER_URL = "https://updates.jenkins.io/update-center.actual.json"
 UPDATE_CENTER_DATA_SOURCE = "jenkins_update_center"
+DEFAULT_GRAPH_REFRESH_INTERVAL_SECONDS = 24 * 60 * 60
 
 
 def load_plugin_ids(path: Path) -> list[str]:
@@ -349,6 +351,46 @@ def run_graph_build(
         report["edge_count"],
     )
     return report
+
+
+def refresh_graph_if_stale(
+    logger,
+    artifact_paths: GraphArtifactPaths = GraphArtifactPaths(),
+    max_age_seconds: int = DEFAULT_GRAPH_REFRESH_INTERVAL_SECONDS,
+) -> None:
+    """
+    Fetch Update Center data and rebuild graph artifacts when the graph is stale.
+
+    Args:
+        logger: Logger for refresh status and failures.
+        artifact_paths: Destination paths for graph artifacts.
+        max_age_seconds: Maximum allowed age of the graph artifact.
+
+    """
+    graph_path = artifact_paths.graph_path
+    if (
+        graph_path.exists()
+        and time.time() - graph_path.stat().st_mtime < max_age_seconds
+    ):
+        logger.info("Graph is up to date, no need to refresh.")
+        return
+
+    started_at = time.perf_counter()
+    try:
+        logger.info("Graph outdated, refreshing.")
+        fetch_update_center_snapshot(DEFAULT_UPDATE_CENTER_PATH)
+        run_graph_build(
+            plugin_names_path=DEFAULT_PLUGIN_NAMES_PATH,
+            chunks_path=DEFAULT_PLUGIN_CHUNKS_PATH,
+            artifact_paths=artifact_paths,
+            logger=logger,
+            update_center_path=DEFAULT_UPDATE_CENTER_PATH,
+        )
+    except (OSError, TypeError, ValueError, RuntimeError) as error:
+        logger.warning("Graph refresh failed; keeping existing artifacts: %s", error)
+        return
+
+    logger.info("Graph refresh completed in %.2fs.", time.perf_counter() - started_at)
 
 
 def parse_args() -> argparse.Namespace:

@@ -154,6 +154,40 @@ def test_retrieve_graph_relations_handles_dependency_directions():
     ]
 
 
+def test_retrieve_graph_relations_always_returns_list_context():
+    """Return graph relations regardless of wording that implies an answer shape."""
+    graph = build_test_graph()
+
+    list_result = retrieve_graph_relations(
+        "Which plugins depend on Git Plugin?",
+        PLUGIN_LOOKUP,
+        graph,
+    )
+    boolean_result = retrieve_graph_relations(
+        "Does Blue Ocean depend on Git?",
+        PLUGIN_LOOKUP,
+        graph,
+    )
+    count_result = retrieve_graph_relations(
+        "How many plugins depend on Git Plugin?",
+        PLUGIN_LOOKUP,
+        graph,
+    )
+
+    assert sorted(relation.source.entity_id for relation in list_result.relations) == [
+        "blueocean",
+        "workflow",
+    ]
+    assert [
+        (relation.source.entity_id, relation.target.entity_id)
+        for relation in boolean_result.relations
+    ] == [("blueocean", "git")]
+    assert sorted(relation.source.entity_id for relation in count_result.relations) == [
+        "blueocean",
+        "workflow",
+    ]
+
+
 def test_retrieve_graph_relations_handles_conflicts_and_fallback():
     """Verify conflict traversal works and normal how-to queries do not activate."""
     graph = build_test_graph()

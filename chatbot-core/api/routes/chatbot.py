@@ -132,17 +132,31 @@ async def chatbot_stream(websocket: WebSocket, session_id: str):
                 continue
 
             user_message = message_data.get("message", "")
+            provider_id = message_data.get("provider", "local")
 
             if not user_message:
                 continue
 
-            async for token in get_chatbot_reply_stream(
-                session_id,
-                user_message,
-            ):
+            if not isinstance(provider_id, str):
                 await websocket.send_text(
-                    json.dumps({"token": token})
+                    json.dumps({"error": "Provider ID must be a string."})
                 )
+                continue
+
+            try:
+                with provider_manager.activate(provider_id):
+                    async for token in get_chatbot_reply_stream(
+                        session_id,
+                        user_message,
+                    ):
+                        await websocket.send_text(
+                            json.dumps({"token": token})
+                        )
+            except ValueError as exc:
+                await websocket.send_text(
+                    json.dumps({"error": str(exc)})
+                )
+                continue
 
             await websocket.send_text(
                 json.dumps({"end": True})

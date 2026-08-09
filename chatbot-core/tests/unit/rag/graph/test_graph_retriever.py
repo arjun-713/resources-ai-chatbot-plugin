@@ -101,7 +101,6 @@ def test_parse_graph_query_resolves_alias_entity():
     )
     assert plan.source_entity.entity_id == "blueocean"
     assert plan.direction == "outgoing"
-    assert plan.answer_mode == "list"
     assert plan.matched_rule == "dependency_by_position"
 
 
@@ -115,7 +114,6 @@ def test_parse_graph_query_keeps_multi_entity_roles_unassigned():
     assert plan.direction == "pairwise"
     assert plan.source_entity.entity_id == "blueocean"
     assert plan.target_entity.entity_id == "git"
-    assert plan.answer_mode == "boolean"
 
 
 def test_resolve_query_entities_preserves_multiple_plugin_spans():

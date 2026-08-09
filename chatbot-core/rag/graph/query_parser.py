@@ -16,12 +16,6 @@ QUERY_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9+._-]*")
 QUERY_WHITESPACE_PATTERN = re.compile(r"\s+")
 QUERY_PUNCTUATION_PATTERN = re.compile(r"[?!,:;]+")
 MAX_QUERY_ENTITY_TOKENS = 8
-BOOLEAN_QUERY_PATTERN = re.compile(
-    r"^(?:does|is|are|can|could|will|would)\b", re.IGNORECASE
-)
-COUNT_QUERY_PATTERN = re.compile(
-    r"\b(?:how many|count|number of)\b", re.IGNORECASE
-)
 MULTI_HOP_QUERY_PATTERNS = (
     re.compile(r"\bindirect(?:ly)?\b", re.IGNORECASE),
     re.compile(r"\btransitive(?:ly)?\b", re.IGNORECASE),
@@ -108,7 +102,6 @@ class GraphQueryPlan:
         source_entity: Known source entity, if any.
         target_entity: Known target entity, if any.
         traversal_depth: Number of graph hops.
-        answer_mode: ``list``, ``boolean``, or ``count``.
         matched_rule: Diagnostic position-based rule label.
     """
 
@@ -117,7 +110,6 @@ class GraphQueryPlan:
     source_entity: GraphEntity | None
     target_entity: GraphEntity | None
     traversal_depth: int
-    answer_mode: str
     matched_rule: str
 
 
@@ -250,24 +242,6 @@ def detect_graph_relation_types(query: str) -> tuple[str, ...] | None:
     return _relation_types(query, relation) if relation else None
 
 
-def _answer_mode(query: str) -> str:
-    """
-    Classify list, boolean, or count output without affecting direction.
-
-    Args:
-        query: Raw user query.
-
-    Returns:
-        ``list``, ``boolean``, or ``count``.
-    """
-    normalized = normalize_graph_query(query)
-    if COUNT_QUERY_PATTERN.search(normalized):
-        return "count"
-    if BOOLEAN_QUERY_PATTERN.search(normalized):
-        return "boolean"
-    return "list"
-
-
 def _build_plan(
     query: str,
     relation: RelationMention,
@@ -314,7 +288,6 @@ def _build_plan(
         source_entity=source,
         target_entity=target,
         traversal_depth=depth,
-        answer_mode=_answer_mode(query),
         matched_rule=f"{relation.family}_by_position",
     )
 

@@ -5,8 +5,6 @@ import networkx as nx
 from rag.graph.graph_retriever import retrieve_graph_relations
 from rag.graph.hybrid_context import build_chunk_lookup, format_graph_retrieval_result
 from rag.graph.query_parser import (
-    detect_graph_query_intent,
-    detect_graph_query_direction,
     detect_graph_relation_types,
     normalize_graph_query,
     parse_graph_query,
@@ -67,21 +65,8 @@ def build_test_graph() -> nx.MultiDiGraph:
     return graph
 
 
-def test_detect_graph_query_intents():
-    """Verify dependency, reverse dependency, conflict, and multi-hop intents."""
-    dependency = detect_graph_query_intent("What does Blue Ocean depend on?")
-    reverse = detect_graph_query_intent("Which plugins depend on Git Plugin?")
-    conflict = detect_graph_query_intent("Which plugins conflict with Legacy Plugin?")
-    multi_hop = detect_graph_query_intent("Show indirect dependencies of Blue Ocean")
-
-    assert dependency.direction == "outgoing"
-    assert reverse.direction == "incoming"
-    assert conflict.direction == "both"
-    assert multi_hop.traversal_depth == 2
-
-
-def test_detect_graph_relation_and_direction_separately():
-    """Verify relation family and traversal direction are independent results."""
+def test_detect_graph_relation_types_without_direction():
+    """Verify relation-family detection remains independent of plan building."""
     dependency_query = "Which plugins depend on Git Plugin?"
     conflict_query = "Which plugins conflict with Legacy Plugin?"
 
@@ -89,9 +74,7 @@ def test_detect_graph_relation_and_direction_separately():
         "DEPENDS_ON",
         "OPTIONAL_DEPENDS_ON",
     )
-    assert detect_graph_query_direction(dependency_query) == "incoming"
     assert detect_graph_relation_types(conflict_query) == ("CONFLICTS_WITH",)
-    assert detect_graph_query_direction(conflict_query) == "both"
 
 
 def test_normalize_graph_query_wording():
@@ -112,32 +95,27 @@ def test_normalize_graph_query_wording():
 
 def test_parse_graph_query_resolves_alias_entity():
     """Verify human plugin names resolve to canonical graph node IDs."""
-    query_match = parse_graph_query(
+    plan = parse_graph_query(
         "What does Blue Ocean depend on?",
         PLUGIN_LOOKUP,
     )
-    assert query_match.query_entity == "Blue Ocean"
-    assert query_match.matched_entity.entity_id == "blueocean"
-    assert query_match.intent.direction == "outgoing"
-    assert query_match.plan.source_entity.entity_id == "blueocean"
-    assert query_match.plan.answer_mode == "list"
-    assert query_match.plan.matched_rule == "outgoing_dependency"
+    assert plan.source_entity.entity_id == "blueocean"
+    assert plan.direction == "outgoing"
+    assert plan.answer_mode == "list"
+    assert plan.matched_rule == "dependency_by_position"
 
 
 def test_parse_graph_query_keeps_multi_entity_roles_unassigned():
-    """Verify pairwise entities are retained until structural parsing assigns roles."""
-    query_match = parse_graph_query(
+    """Verify pairwise entities are assigned directly by their positions."""
+    plan = parse_graph_query(
         "Does Blue Ocean depend on Git?",
         PLUGIN_LOOKUP,
     )
 
-    assert [item.entity.entity_id for item in query_match.entities] == [
-        "blueocean",
-        "git",
-    ]
-    assert query_match.plan.source_entity is None
-    assert query_match.plan.target_entity is None
-    assert query_match.plan.answer_mode == "boolean"
+    assert plan.direction == "pairwise"
+    assert plan.source_entity.entity_id == "blueocean"
+    assert plan.target_entity.entity_id == "git"
+    assert plan.answer_mode == "boolean"
 
 
 def test_resolve_query_entities_preserves_multiple_plugin_spans():
@@ -182,7 +160,7 @@ def test_retrieve_graph_relations_handles_conflicts_and_fallback():
     """Verify conflict traversal works and normal how-to queries do not activate."""
     graph = build_test_graph()
     conflict = retrieve_graph_relations(
-        "Which plugins conflict with Legacy Plugin?",
+        "Does Blue Ocean conflict with Legacy Plugin?",
         PLUGIN_LOOKUP,
         graph,
     )

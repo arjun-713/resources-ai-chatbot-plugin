@@ -80,22 +80,6 @@ class RelationMention:
 
 
 @dataclass(frozen=True)
-class GraphQueryIntent:
-    """
-    Legacy relation view retained for the current graph retriever.
-
-    Attributes:
-        relation_types: Graph edge types requested by the query.
-        direction: Legacy traversal direction.
-        traversal_depth: Requested graph depth.
-    """
-
-    relation_types: tuple[str, ...]
-    direction: str
-    traversal_depth: int = 1
-
-
-@dataclass(frozen=True)
 class ResolvedQueryEntity:
     """
     A canonical Jenkins plugin and its raw-query span.
@@ -135,28 +119,6 @@ class GraphQueryPlan:
     traversal_depth: int
     answer_mode: str
     matched_rule: str
-
-
-@dataclass(frozen=True)
-class GraphQueryMatch:
-    """
-    Parsed query state passed to graph retrieval.
-
-    Attributes:
-        query: Original user query.
-        query_entity: First resolved entity spelling.
-        matched_entity: First canonical entity.
-        intent: Legacy compatibility view.
-        plan: Authoritative structured graph plan.
-        entities: All resolved entities in query order.
-    """
-
-    query: str
-    query_entity: str
-    matched_entity: GraphEntity
-    intent: GraphQueryIntent
-    plan: GraphQueryPlan
-    entities: tuple[ResolvedQueryEntity, ...]
 
 
 def normalize_graph_query(query: str) -> str:
@@ -286,60 +248,6 @@ def detect_graph_relation_types(query: str) -> tuple[str, ...] | None:
     """
     relation = _find_relation(query)
     return _relation_types(query, relation) if relation else None
-
-
-def _legacy_direction(query: str, relation: RelationMention) -> str:
-    """
-    Provide the old direction estimate for compatibility callers.
-
-    Args:
-        query: Raw user query.
-        relation: Detected relation mention.
-
-    Returns:
-        Legacy direction estimate.
-    """
-    if relation.family == "conflict":
-        return "both"
-    prefix = [token.text for token in _tokens(query[: relation.start])]
-    return "incoming" if "plugins" in prefix else "outgoing"
-
-
-def detect_graph_query_direction(query: str) -> str | None:
-    """
-    Return the compatibility direction estimate.
-
-    Args:
-        query: Raw user query.
-
-    Returns:
-        Legacy direction, or ``None`` when no relation is recognized.
-    """
-    relation = _find_relation(query)
-    return _legacy_direction(query, relation) if relation else None
-
-
-def detect_graph_query_intent(query: str) -> GraphQueryIntent | None:
-    """
-    Return the legacy intent view retained by the current retriever.
-
-    Args:
-        query: Raw user query.
-
-    Returns:
-        Compatibility intent, or ``None`` when no relation is recognized.
-    """
-    relation = _find_relation(query)
-    if relation is None:
-        return None
-    normalized = normalize_graph_query(query)
-    return GraphQueryIntent(
-        relation_types=_relation_types(query, relation),
-        direction=_legacy_direction(query, relation),
-        traversal_depth=2
-        if any(pattern.search(normalized) for pattern in MULTI_HOP_QUERY_PATTERNS)
-        else 1,
-    )
 
 
 def _answer_mode(query: str) -> str:
@@ -483,7 +391,7 @@ def resolve_query_entities(
 def parse_graph_query(
     query: str,
     plugin_lookup: PluginLookup,
-) -> GraphQueryMatch | None:
+) -> GraphQueryPlan | None:
     """
     Parse an obvious graph-shaped query or abstain.
 
@@ -492,24 +400,11 @@ def parse_graph_query(
         plugin_lookup: Existing Jenkins plugin lookup.
 
     Returns:
-        Parsed graph match, or ``None`` for negated or unsupported wording.
+        Position-based graph plan, or ``None`` for negated or unsupported
+        wording.
     """
     if any(token.text in NEGATION_WORDS for token in _tokens(query)):
         return None
     entities = resolve_query_entities(query, plugin_lookup)
     plan = build_graph_query_plan(query, entities)
-    if plan is None:
-        return None
-    first_entity = entities[0]
-    return GraphQueryMatch(
-        query=query,
-        query_entity=first_entity.text,
-        matched_entity=first_entity.entity,
-        intent=GraphQueryIntent(
-            relation_types=plan.relation_types,
-            direction=plan.direction,
-            traversal_depth=plan.traversal_depth,
-        ),
-        plan=plan,
-        entities=entities,
-    )
+    return plan

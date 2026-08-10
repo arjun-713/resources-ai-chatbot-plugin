@@ -238,10 +238,7 @@ def collect_graph_relations(
                     )
                 )
 
-                if plan.direction == "incoming":
-                    neighbor_id = source_id
-                elif plan.direction in {"outgoing", "pairwise"}:
-                    neighbor_id = target_id
+                neighbor_id = source_id if plan.direction == "incoming" else target_id
 
                 if neighbor_id not in visited_nodes:
                     visited_nodes.add(neighbor_id)

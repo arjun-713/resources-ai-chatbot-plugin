@@ -189,7 +189,7 @@ def _find_relation(query: str) -> RelationMention | None:
         Relation mention, or ``None`` when no supported phrase is found.
     """
     tokens = _tokens(query)
-    for index in range(len(tokens)):
+    for index, token in enumerate(tokens):
         for phrase, family in (*DEPENDENCY_RELATIONS, *CONFLICT_RELATIONS):
             words = phrase.split()
             if [token.text for token in tokens[index : index + len(words)]] != words:
@@ -198,7 +198,7 @@ def _find_relation(query: str) -> RelationMention | None:
             return RelationMention(
                 phrase=phrase,
                 family=family,
-                start=tokens[index].start,
+                start=token.start,
                 end=end_token.end,
             )
     return None

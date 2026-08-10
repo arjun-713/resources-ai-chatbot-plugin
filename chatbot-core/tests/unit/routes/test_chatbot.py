@@ -23,6 +23,42 @@ def test_chatbot_reply_success(client, mock_session_exists, mock_get_chatbot_rep
     assert response.json() == {"reply": "This is a valid response"}
 
 
+def test_chatbot_reply_activates_selected_provider(
+    client, mock_session_exists, mock_get_chatbot_reply, mocker
+):
+    """Normal requests activate the provider selected in the JSON payload."""
+    mock_session_exists.return_value = True
+    mock_get_chatbot_reply.return_value = {"reply": "hosted response"}
+    activate = mocker.patch("api.routes.chatbot.provider_manager.activate")
+
+    response = client.post(
+        "/sessions/test-session-id/message",
+        json={"message": "Hello", "provider": "groq"},
+    )
+
+    assert response.status_code == 200
+    activate.assert_called_once_with("groq")
+    activate.return_value.__exit__.assert_called_once()
+
+
+def test_chatbot_reply_rejects_unknown_provider(
+    client, mock_session_exists, mock_get_chatbot_reply
+):
+    """Unknown providers return an error instead of falling back locally."""
+    mock_session_exists.return_value = True
+
+    response = client.post(
+        "/sessions/test-session-id/message",
+        json={"message": "Hello", "provider": "unknown"},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Unsupported LLM provider: unknown"
+    }
+    mock_get_chatbot_reply.assert_not_called()
+
+
 def test_chatbot_reply_invalid_session(client, mock_session_exists):
     """Testing that sending a message to an invalid session returns 404."""
     mock_session_exists.return_value = False
@@ -122,6 +158,27 @@ def test_websocket_valid_json_streams_response(
         assert token2 == {"token": " world"}
         end = ws.receive_json()
         assert end == {"end": True}
+
+
+def test_websocket_activates_selected_provider(
+    client, mock_session_exists, mock_get_chatbot_reply_stream, mocker
+):
+    """WebSocket requests activate the provider selected in the payload."""
+    mock_session_exists.return_value = True
+
+    async def fake_stream(_session_id, _message):
+        yield "response"
+
+    mock_get_chatbot_reply_stream.side_effect = fake_stream
+    activate = mocker.patch("api.routes.chatbot.provider_manager.activate")
+
+    with client.websocket_connect("/sessions/test-session-id/stream") as ws:
+        ws.send_json({"message": "Hello", "provider": "groq"})
+        assert ws.receive_json() == {"token": "response"}
+        assert ws.receive_json() == {"end": True}
+
+    activate.assert_called_once_with("groq")
+    activate.return_value.__exit__.assert_called_once()
 
 
 def test_websocket_empty_message_is_skipped(

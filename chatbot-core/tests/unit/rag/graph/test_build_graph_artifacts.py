@@ -2,6 +2,7 @@
 
 import json
 import hashlib
+from io import BytesIO
 from unittest.mock import Mock, patch
 
 import pytest
@@ -220,9 +221,7 @@ def test_fetch_update_center_snapshot_replaces_valid_file(tmp_path):
     """Verify a valid downloaded snapshot is written with its checksum."""
     destination = tmp_path / "update-center.actual.json"
     payload = json.dumps({"plugins": {"source-plugin": {"dependencies": []}}})
-    response = Mock()
-    response.read.return_value = payload.encode()
-    response.__enter__.return_value = response
+    response = BytesIO(payload.encode())
     with patch(
         "rag.graph.build_graph_artifacts.urlopen",
         return_value=response,
@@ -242,9 +241,7 @@ def test_fetch_update_center_snapshot_preserves_existing_file_on_invalid_data(
     """Verify invalid downloaded data cannot replace an existing snapshot."""
     destination = tmp_path / "update-center.actual.json"
     destination.write_text("existing snapshot", encoding="utf-8")
-    response = Mock()
-    response.read.return_value = b'{"plugins": []}'
-    response.__enter__.return_value = response
+    response = BytesIO(b'{"plugins": []}')
     with patch(
         "rag.graph.build_graph_artifacts.urlopen",
         return_value=response,

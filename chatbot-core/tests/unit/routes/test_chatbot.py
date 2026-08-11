@@ -1,5 +1,7 @@
 """Unit Tests for FastAPI routes."""
 
+from api.config.providers import ProviderDefinition
+
 def test_start_chat(client, mock_init_session):
     """Testing that creating a session returns session ID and location."""
     mock_init_session.return_value = "test-session-id"
@@ -9,6 +11,47 @@ def test_start_chat(client, mock_init_session):
     assert response.status_code == 201
     assert response.json() == {"session_id": "test-session-id"}
     assert response.headers["location"] == "/sessions/test-session-id/message"
+
+
+def test_get_providers_returns_safe_catalog_metadata(client, mocker):
+    """Provider metadata includes configuration status without API keys."""
+    mocker.patch(
+        "api.routes.chatbot.load_provider_catalog",
+        return_value=(
+            ProviderDefinition(
+                id="local",
+                label="Local",
+                model="llama.cpp",
+            ),
+            ProviderDefinition(
+                id="groq",
+                label="Groq",
+                model="groq/model",
+            ),
+        ),
+    )
+    mocker.patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}, clear=False)
+
+    response = client.get("/providers")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "providers": [
+            {
+                "id": "local",
+                "label": "Local",
+                "model": "llama.cpp",
+                "configured": True,
+            },
+            {
+                "id": "groq",
+                "label": "Groq",
+                "model": "groq/model",
+                "configured": True,
+            },
+        ]
+    }
+    assert "test-key" not in response.text
 
 
 def test_chatbot_reply_success(client, mock_session_exists, mock_get_chatbot_reply):

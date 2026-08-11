@@ -12,6 +12,7 @@ to the chat service logic.
 import json
 import logging
 import asyncio
+import os
 
 # =========================
 # Third-party imports
@@ -41,7 +42,10 @@ from api.models.schemas import (
     SessionResponse,
     FileAttachment,
     SupportedExtensionsResponse,
+    ProviderMetadata,
+    ProvidersResponse,
 )
+from api.config.providers import load_provider_catalog
 from api.services.chat_service import (
     get_chatbot_reply,
     get_chatbot_reply_stream,
@@ -118,6 +122,26 @@ async def _process_uploaded_files(
             await upload_file.close()
 
     return processed_files
+
+
+@router.get("/providers", response_model=ProvidersResponse)
+def get_providers() -> ProvidersResponse:
+    """Return safe metadata for the configured local and hosted providers."""
+    providers = load_provider_catalog()
+    return ProvidersResponse(
+        providers=[
+            ProviderMetadata(
+                id=provider.id,
+                label=provider.label,
+                model=provider.model,
+                configured=(
+                    provider.id == "local"
+                    or bool(os.getenv(provider.api_key_env))
+                ),
+            )
+            for provider in providers
+        ]
+    )
 
 
 # =========================

@@ -4,6 +4,7 @@ import {
   fetchChatbotReply,
   deleteChatSession,
   fetchChatbotReplyWithFiles,
+  fetchProviders,
 } from "../api/chatbot";
 
 import { callChatbotApi } from "../utils/callChatbotApi";
@@ -137,6 +138,34 @@ describe("chatbotApi", () => {
         undefined,
         expect.any(Number),
       );
+    });
+  });
+
+  describe("fetchProviders", () => {
+    it("returns provider metadata from the backend", async () => {
+      const providers = [
+        {
+          id: "groq",
+          label: "Groq API",
+          model: "groq/llama-3.1-8b-instant",
+          configured: true,
+        },
+      ];
+      (callChatbotApi as jest.Mock).mockResolvedValueOnce({ providers });
+
+      await expect(fetchProviders()).resolves.toEqual(providers);
+      expect(callChatbotApi).toHaveBeenCalledWith(
+        "providers",
+        { method: "GET" },
+        { providers: [] },
+        expect.any(Number),
+      );
+    });
+
+    it("returns an empty list when the backend request fails", async () => {
+      (callChatbotApi as jest.Mock).mockResolvedValueOnce({ providers: [] });
+
+      await expect(fetchProviders()).resolves.toEqual([]);
     });
   });
 

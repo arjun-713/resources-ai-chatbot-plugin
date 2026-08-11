@@ -15,6 +15,20 @@ export interface SupportedExtensions {
 }
 
 /**
+ * Safe provider metadata returned by the backend.
+ */
+export interface ProviderMetadata {
+  id: string;
+  label: string;
+  model: string;
+  configured: boolean;
+}
+
+interface ProvidersResponse {
+  providers: ProviderMetadata[];
+}
+
+/**
  * Send a request to the backend to create a new chat session and returns the id of the
  * chat session created.
  *
@@ -152,6 +166,23 @@ export const fetchSupportedExtensions =
       return null;
     }
   };
+
+/**
+ * Fetches the provider catalog exposed by the backend.
+ *
+ * @returns A Promise resolving to provider metadata, or an empty list if the
+ * request fails
+ */
+export const fetchProviders = async (): Promise<ProviderMetadata[]> => {
+  const data = await callChatbotApi<ProvidersResponse>(
+    "providers",
+    { method: "GET" },
+    { providers: [] },
+    CHATBOT_API_TIMEOUTS_MS.CREATE_SESSION,
+  );
+
+  return data.providers;
+};
 
 /**
  * Sends a request to the backend to delete the chat session with session id sessionId.

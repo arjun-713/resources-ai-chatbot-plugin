@@ -9,7 +9,7 @@ from typing import AsyncGenerator, List, Optional
 from api.config.loader import CONFIG
 from api.models.embedding_model import EMBEDDING_MODEL
 from api.models.llama_cpp_provider import llm_provider
-from api.models.provider_manager import ProviderManager, get_current_provider
+from api.models.provider_manager import build_provider_manager, get_current_provider
 from api.models.schemas import ChatResponse, QueryType, try_str_to_query_type, FileAttachment
 from api.prompts.prompt_builder import build_prompt
 from api.prompts.prompts import (
@@ -35,7 +35,7 @@ from utils import LoggerFactory
 logger = LoggerFactory.instance().get_logger("api")
 llm_config = CONFIG["llm"]
 retrieval_config = CONFIG["retrieval"]
-provider_manager = ProviderManager(llm_provider)
+provider_manager = build_provider_manager(llm_provider)
 CODE_BLOCK_PLACEHOLDER_PATTERN = r"\[\[(?:CODE_BLOCK|CODE_SNIPPET)_(\d+)\]\]"
 SOURCE_TOP_K_CONFIG_KEYS = {
     "plugins": "top_k_plugins",

@@ -1,10 +1,12 @@
 """Request-scoped selection of local and hosted LLM providers."""
 
+import os
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 
+from api.config.providers import ProviderDefinition, load_provider_catalog
 from api.models.llm_provider import LLMProvider
 from api.models.litellm import LiteLLMProvider
 
@@ -19,15 +21,13 @@ class HostedProviderConfig:
     """Configuration needed to construct one hosted provider."""
 
     model: str
-    api_key: str
+    api_key: str | None = None
     api_base: str | None = None
     timeout: int = 60
 
     def __post_init__(self) -> None:
         if not self.model:
             raise ValueError("A hosted provider model is required.")
-        if not self.api_key:
-            raise ValueError("A hosted provider API key is required.")
 
 
 ProviderFactory = Callable[[HostedProviderConfig], LLMProvider]
@@ -41,6 +41,25 @@ def _build_litellm_provider(config: HostedProviderConfig) -> LLMProvider:
         api_base=config.api_base,
         timeout=config.timeout,
     )
+
+
+def build_provider_manager(
+    local_provider: LLMProvider,
+    provider_catalog: tuple[ProviderDefinition, ...] | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> "ProviderManager":
+    """Build a provider manager from the catalog and environment."""
+    catalog = load_provider_catalog() if provider_catalog is None else provider_catalog
+    env = os.environ if environment is None else environment
+    hosted_providers = {
+        provider.id: HostedProviderConfig(
+            model=provider.model,
+            api_key=env.get(provider.api_key_env),
+        )
+        for provider in catalog
+        if provider.id != "local"
+    }
+    return ProviderManager(local_provider, hosted_providers)
 
 
 class ProviderManager:
@@ -64,6 +83,11 @@ class ProviderManager:
         config = self._hosted_providers.get(provider_id)
         if config is None:
             raise ValueError(f"Unsupported LLM provider: {provider_id}")
+        if not config.api_key:
+            raise ValueError(
+                f"No API key configured for provider: {provider_id}. "
+                f"Set {provider_id.upper()}_API_KEY."
+            )
 
         return self._provider_factory(config)
 

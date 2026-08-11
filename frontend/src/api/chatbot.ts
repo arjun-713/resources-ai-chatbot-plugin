@@ -64,13 +64,18 @@ export const fetchChatbotReply = async (
   sessionId: string,
   userMessage: string,
   signal?: AbortSignal,
+  providerId = "local",
 ): Promise<Message> => {
+  const requestBody = {
+    message: userMessage,
+    ...(providerId !== "local" ? { provider: providerId } : {}),
+  };
   const data = await callChatbotApi<{ reply?: string }>(
     `sessions/${sessionId}/message`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userMessage }),
+      body: JSON.stringify(requestBody),
       signal,
     },
     {},
@@ -96,6 +101,7 @@ export const fetchChatbotReplyWithFiles = async (
   userMessage: string,
   files: File[],
   signal: AbortSignal,
+  providerId = "local",
 ): Promise<Message> => {
   // Combine external signal with timeout using AbortSignal.any()
   const timeoutSignal = AbortSignal.timeout(
@@ -106,6 +112,9 @@ export const fetchChatbotReplyWithFiles = async (
   try {
     const formData = new FormData();
     formData.append("message", userMessage);
+    if (providerId !== "local") {
+      formData.append("provider", providerId);
+    }
 
     files.forEach((file) => {
       formData.append("files", file);

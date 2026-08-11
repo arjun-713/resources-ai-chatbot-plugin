@@ -111,6 +111,23 @@ describe("chatbotApi", () => {
         text: "Fallback error message",
       });
     });
+
+    it("includes the selected hosted provider in the request", async () => {
+      (callChatbotApi as jest.Mock).mockResolvedValueOnce({
+        reply: "Hosted reply",
+      });
+
+      await fetchChatbotReply("session-xyz", "Hi!", undefined, "groq");
+
+      expect(callChatbotApi).toHaveBeenCalledWith(
+        "sessions/session-xyz/message",
+        expect.objectContaining({
+          body: JSON.stringify({ message: "Hi!", provider: "groq" }),
+        }),
+        {},
+        expect.any(Number),
+      );
+    });
   });
 
   describe("deleteChatSession", () => {

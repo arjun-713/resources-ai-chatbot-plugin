@@ -8,9 +8,11 @@ import {
   createChatSession,
   deleteChatSession,
   fetchSupportedExtensions,
+  fetchProviders,
   validateFile,
   fileToAttachment,
   type SupportedExtensions,
+  type ProviderMetadata,
 } from "../api/chatbot";
 import { Header } from "./Header";
 import { Messages } from "./Messages";
@@ -50,6 +52,8 @@ export const Chatbot = () => {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [supportedExtensions, setSupportedExtensions] =
     useState<SupportedExtensions | null>(null);
+  const [providers, setProviders] = useState<ProviderMetadata[]>([]);
+  const [selectedProviderId, setSelectedProviderId] = useState("local");
 
   const { showToast, setShowToast } = useContextObserver(isOpen);
 
@@ -64,6 +68,26 @@ export const Chatbot = () => {
       }
     };
     loadSupportedExtensions();
+  }, []);
+
+  /**
+   * Fetch the configured providers on component mount.
+   */
+  useEffect(() => {
+    const loadProviders = async () => {
+      const configuredProviders = await fetchProviders();
+      if (configuredProviders.length === 0) {
+        return;
+      }
+      setProviders(configuredProviders);
+      if (
+        configuredProviders.length > 0 &&
+        !configuredProviders.some((provider) => provider.id === "local")
+      ) {
+        setSelectedProviderId(configuredProviders[0].id);
+      }
+    };
+    loadProviders();
   }, []);
 
   /**
@@ -197,18 +221,33 @@ export const Chatbot = () => {
     try {
       const botReply =
         filesToSend.length > 0
-          ? await fetchChatbotReplyWithFiles(
-              currentSessionId,
-              trimmed || "Please analyze the attached file(s).",
-              filesToSend,
-              controller.signal,
-            )
-          : controller.signal
-            ? await fetchChatbotReply(
+          ? selectedProviderId === "local"
+            ? await fetchChatbotReplyWithFiles(
                 currentSessionId,
-                trimmed,
+                trimmed || "Please analyze the attached file(s).",
+                filesToSend,
                 controller.signal,
               )
+            : await fetchChatbotReplyWithFiles(
+                currentSessionId,
+                trimmed || "Please analyze the attached file(s).",
+                filesToSend,
+                controller.signal,
+                selectedProviderId,
+              )
+          : controller.signal
+            ? selectedProviderId === "local"
+              ? await fetchChatbotReply(
+                  currentSessionId,
+                  trimmed,
+                  controller.signal,
+                )
+              : await fetchChatbotReply(
+                  currentSessionId,
+                  trimmed,
+                  controller.signal,
+                  selectedProviderId,
+                )
             : await fetchChatbotReply(currentSessionId, trimmed);
       appendMessageToCurrentSession(botReply);
     } catch (error) {
@@ -419,6 +458,9 @@ export const Chatbot = () => {
             openSideBar={openSideBar}
             clearMessages={openConfirmDeleteChatPopup}
             messages={getSessionMessages(currentSessionId)}
+            providers={providers}
+            selectedProviderId={selectedProviderId}
+            onProviderChange={setSelectedProviderId}
           />
           {currentSessionId !== null ? (
             <>

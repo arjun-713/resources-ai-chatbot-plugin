@@ -348,7 +348,7 @@ export const chatbotStyles = {
     maxWidth: "calc(100vw - 32px)",
     maxHeight: "min(380px, calc(100vh - 120px))",
     overflowY: "auto",
-    padding: "8px",
+    padding: "10px",
     backgroundColor: "#ffffff",
     border: "1px solid #e5e7eb",
     borderRadius: "14px",
@@ -432,7 +432,7 @@ export const chatbotStyles = {
   providerOptionModel: {
     overflow: "hidden",
     color: "var(--text-color)",
-    opacity: 0.68,
+    opacity: 0.56,
     fontSize: "11px",
     fontFamily:
       "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

@@ -1,10 +1,11 @@
 """Synchronize provider API-key entries with the local environment file."""
 
+import argparse
 import re
 from pathlib import Path
 from collections.abc import Iterable
 
-from api.config.providers import ProviderDefinition
+from api.config.providers import ProviderDefinition, load_provider_catalog
 
 _CONFIG_DIR = Path(__file__).resolve().parent
 DEFAULT_ENV_PATH = _CONFIG_DIR.parent.parent / ".env"
@@ -61,3 +62,34 @@ def sync_provider_env(
     output_lines = unmanaged_lines + ([""] if unmanaged_lines else []) + managed_lines
     env_path.parent.mkdir(parents=True, exist_ok=True)
     env_path.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
+
+
+def main() -> None:
+    """Synchronize the provider catalog into the selected environment file."""
+    parser = argparse.ArgumentParser(
+        description="Synchronize provider API-key entries into a .env file."
+    )
+    parser.add_argument(
+        "--catalog",
+        type=Path,
+        help="Provider catalog path; defaults to api/config/providers.json.",
+    )
+    parser.add_argument(
+        "--env",
+        dest="env_path",
+        type=Path,
+        default=DEFAULT_ENV_PATH,
+        help="Environment file path; defaults to chatbot-core/.env.",
+    )
+    args = parser.parse_args()
+    providers = (
+        load_provider_catalog(args.catalog)
+        if args.catalog
+        else load_provider_catalog()
+    )
+    sync_provider_env(providers, args.env_path)
+    print(f"Synchronized {len(providers) - 1} hosted provider key entries.")
+
+
+if __name__ == "__main__":
+    main()

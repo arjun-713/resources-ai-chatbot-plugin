@@ -51,8 +51,10 @@ def build_provider_manager(
     environment: Mapping[str, str] | None = None,
 ) -> "ProviderManager":
     """Build a provider manager from the catalog and environment."""
-    catalog = load_provider_catalog() if provider_catalog is None else provider_catalog
-    sync_provider_env(catalog)
+    uses_default_catalog = provider_catalog is None
+    catalog = load_provider_catalog() if uses_default_catalog else provider_catalog
+    if uses_default_catalog:
+        sync_provider_env(catalog)
     if environment is None:
         load_dotenv(DEFAULT_ENV_PATH, override=False)
     env = os.environ if environment is None else environment

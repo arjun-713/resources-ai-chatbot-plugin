@@ -39,6 +39,48 @@ export interface HeaderProps {
   onProviderChange?: (providerId: string) => void;
 }
 
+const PROVIDER_LOGOS: Record<string, string> = {
+  anthropic: "/icons/providers/anthropic.svg",
+  gemini: "/icons/providers/gemini.svg",
+  groq: "/icons/providers/groq.svg",
+  local: "/icons/providers/mistral.svg",
+  mistral: "/icons/providers/mistral.svg",
+  mistralai: "/icons/providers/mistral.svg",
+  openai: "/icons/providers/chatgpt.svg",
+  openrouter: "/icons/providers/openrouter.svg",
+};
+
+const getProviderInitial = (label: string, providerId: string): string => {
+  const providerName = label.trim() || providerId.trim();
+  return providerName.charAt(0).toUpperCase() || "?";
+};
+
+const ProviderIcon = ({
+  providerId,
+  label,
+}: {
+  providerId: string;
+  label: string;
+}) => {
+  const logoSource = PROVIDER_LOGOS[providerId.toLowerCase()];
+
+  return (
+    <span style={chatbotStyles.providerOptionIcon} aria-hidden="true">
+      {logoSource ? (
+        <img
+          src={logoSource}
+          alt=""
+          style={chatbotStyles.providerOptionLogo}
+        />
+      ) : (
+        <span style={chatbotStyles.providerOptionInitial}>
+          {getProviderInitial(label, providerId)}
+        </span>
+      )}
+    </span>
+  );
+};
+
 /**
  * Header renders the top section of the chatbot panel, including the title and
  * a button to clear the current conversation. It receives a callback to handle
@@ -234,6 +276,10 @@ export const Header = ({
                       }
                     }}
                   >
+                    <ProviderIcon
+                      providerId={provider.id}
+                      label={provider.label}
+                    />
                     <span style={chatbotStyles.providerOptionText}>
                       <span style={chatbotStyles.providerOptionLabel}>
                         {provider.label}

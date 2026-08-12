@@ -363,7 +363,7 @@ export const chatbotStyles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: "12px",
+    gap: "10px",
     width: "100%",
     minHeight: "58px",
     padding: "9px 12px",
@@ -387,6 +387,32 @@ export const chatbotStyles = {
   providerOptionDisabled: {
     cursor: "not-allowed",
     color: "color-mix(in srgb, var(--text-color) 76%, transparent)",
+  } as CSSProperties,
+
+  providerOptionIcon: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "32px",
+    minWidth: "32px",
+    height: "32px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "8px",
+    backgroundColor: "#ffffff",
+    overflow: "hidden",
+  } as CSSProperties,
+
+  providerOptionLogo: {
+    display: "block",
+    width: "18px",
+    height: "18px",
+    objectFit: "contain",
+  } as CSSProperties,
+
+  providerOptionInitial: {
+    fontSize: "15px",
+    fontWeight: 600,
+    lineHeight: 1,
   } as CSSProperties,
 
   providerOptionText: {

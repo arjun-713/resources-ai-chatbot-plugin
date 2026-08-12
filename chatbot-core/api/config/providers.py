@@ -39,6 +39,8 @@ class ProviderDefinition(BaseModel):
         value = value.strip()
         if not value:
             raise ValueError("cannot be blank")
+        if any(ord(character) < 32 for character in value):
+            raise ValueError("cannot contain control characters")
         return value
 
     @property

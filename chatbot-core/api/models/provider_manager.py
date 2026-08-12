@@ -6,7 +6,10 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 
+from dotenv import load_dotenv
+
 from api.config.providers import ProviderDefinition, load_provider_catalog
+from api.config.env_sync import DEFAULT_ENV_PATH, sync_provider_env
 from api.models.llm_provider import LLMProvider
 from api.models.litellm import LiteLLMProvider
 
@@ -14,7 +17,6 @@ _CURRENT_PROVIDER: ContextVar[LLMProvider | None] = ContextVar(
     "current_llm_provider",
     default=None,
 )
-
 
 @dataclass(frozen=True)
 class HostedProviderConfig:
@@ -50,6 +52,9 @@ def build_provider_manager(
 ) -> "ProviderManager":
     """Build a provider manager from the catalog and environment."""
     catalog = load_provider_catalog() if provider_catalog is None else provider_catalog
+    sync_provider_env(catalog)
+    if environment is None:
+        load_dotenv(DEFAULT_ENV_PATH, override=False)
     env = os.environ if environment is None else environment
     hosted_providers = {
         provider.id: HostedProviderConfig(

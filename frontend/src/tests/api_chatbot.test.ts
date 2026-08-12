@@ -214,6 +214,7 @@ describe("chatbotApi", () => {
         "Analyze this file",
         files,
         controller.signal,
+        "groq",
       );
 
       expect(result).toEqual({
@@ -229,6 +230,8 @@ describe("chatbotApi", () => {
           signal: expect.any(AbortSignal),
         }),
       );
+      const request = (global.fetch as jest.Mock).mock.calls[0][1];
+      expect(request.body.get("provider")).toBe("groq");
     });
 
     it("returns fallback message when API response is not ok", async () => {

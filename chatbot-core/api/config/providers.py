@@ -12,7 +12,7 @@ _PROVIDER_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
 class ProviderDefinition(BaseModel):
-    """Configured LLM provider."""
+    """Define one configured LLM provider."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -23,7 +23,7 @@ class ProviderDefinition(BaseModel):
     @field_validator("id")
     @classmethod
     def validate_id(cls, value: str) -> str:
-        """Normalize and validate the provider ID used for routing."""
+        """Normalize and validate a provider ID."""
         value = value.strip().lower()
         if not _PROVIDER_ID_PATTERN.fullmatch(value):
             raise ValueError(
@@ -35,7 +35,7 @@ class ProviderDefinition(BaseModel):
     @field_validator("label", "model")
     @classmethod
     def validate_non_empty(cls, value: str) -> str:
-        """Trim and reject blank provider metadata."""
+        """Trim and validate provider metadata."""
         value = value.strip()
         if not value:
             raise ValueError("cannot be blank")
@@ -45,12 +45,12 @@ class ProviderDefinition(BaseModel):
 
     @property
     def api_key_env(self) -> str:
-        """Return the environment variable used for this provider's API key."""
+        """Return the provider's API-key environment variable name."""
         return f"{self.id.upper()}_API_KEY"
 
 
 class ProviderCatalog(BaseModel):
-    """Configured provider catalog."""
+    """Define the validated provider catalog."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -60,7 +60,19 @@ class ProviderCatalog(BaseModel):
 def load_provider_catalog(
     catalog_path: Path = _DEFAULT_CATALOG_PATH,
 ) -> tuple[ProviderDefinition, ...]:
-    """Load and validate providers.json."""
+    """
+    Load and validate a provider catalog from JSON.
+
+    Args:
+        catalog_path (Path): Path to the provider catalog JSON file.
+
+    Returns:
+        tuple[ProviderDefinition, ...]: Validated provider definitions.
+
+    Raises:
+        ValueError: If the catalog is missing, malformed, invalid, or has
+        duplicate provider IDs.
+    """
     try:
         with catalog_path.open("r", encoding="utf-8") as catalog_file:
             data = json.load(catalog_file)

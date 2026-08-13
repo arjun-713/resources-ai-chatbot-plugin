@@ -18,7 +18,12 @@ def sync_provider_env(
     providers: Iterable[ProviderDefinition],
     env_path: Path = DEFAULT_ENV_PATH,
 ) -> None:
-    """Update the managed provider-key block while preserving key values."""
+    """Synchronize managed provider API-key entries with an environment file.
+
+    Args:
+        providers (Iterable[ProviderDefinition]): Provider definitions to sync.
+        env_path (Path): Environment file to update.
+    """
     provider_list = [provider for provider in providers if provider.id != "local"]
     existing = env_path.read_text(encoding="utf-8") if env_path.exists() else ""
     values = {

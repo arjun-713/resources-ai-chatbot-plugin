@@ -126,7 +126,11 @@ async def _process_uploaded_files(
 
 @router.get("/providers", response_model=ProvidersResponse)
 def get_providers() -> ProvidersResponse:
-    """Return safe metadata for the configured local and hosted providers."""
+    """Return safe metadata for configured providers.
+
+    Returns:
+        ProvidersResponse: Provider metadata and configuration status.
+    """
     providers = load_provider_catalog()
     return ProvidersResponse(
         providers=[

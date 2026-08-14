@@ -45,7 +45,12 @@ class LiteLLMProvider(LLMProvider):
     def generate(self, prompt: str, max_tokens: int) -> str:
         """Generate a complete response through LiteLLM."""
         response = completion(**self._request_kwargs(prompt, max_tokens))
-        return response.choices[0].message.content or ""
+        choices = getattr(response, "choices", None) or []
+        if not choices:
+            return ""
+
+        message = getattr(choices[0], "message", None)
+        return getattr(message, "content", None) or ""
 
     async def generate_stream(
         self, prompt: str, max_tokens: int

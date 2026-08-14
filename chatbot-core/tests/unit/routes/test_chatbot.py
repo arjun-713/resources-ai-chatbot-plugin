@@ -29,7 +29,14 @@ def test_chatbot_reply_activates_selected_provider(
     """Normal requests activate the provider selected in the JSON payload."""
     mock_session_exists.return_value = True
     mock_get_chatbot_reply.return_value = {"reply": "hosted response"}
-    activate = mocker.patch("api.routes.chatbot.provider_manager.activate")
+    selected_provider = object()
+    resolve = mocker.patch(
+        "api.routes.chatbot.provider_manager.resolve",
+        return_value=selected_provider,
+    )
+    activate = mocker.patch(
+        "api.routes.chatbot.provider_manager.activate_provider"
+    )
 
     response = client.post(
         "/sessions/test-session-id/message",
@@ -37,7 +44,8 @@ def test_chatbot_reply_activates_selected_provider(
     )
 
     assert response.status_code == 200
-    activate.assert_called_once_with("groq")
+    resolve.assert_called_once_with("groq")
+    activate.assert_called_once_with(selected_provider)
     activate.return_value.__exit__.assert_called_once()
 
 

@@ -81,6 +81,45 @@ except ImportError:
 router = APIRouter()
 
 
+async def _process_uploaded_files(
+    files: Optional[List[UploadFile]],
+) -> List[FileAttachment]:
+    """Process uploaded files and close each upload after reading it.
+
+    Args:
+        files: Uploaded files received from the multipart request.
+
+    Returns:
+        Processed file attachments.
+
+    Raises:
+        HTTPException: If an uploaded file cannot be processed.
+    """
+    processed_files: List[FileAttachment] = []
+
+    if not files:
+        return processed_files
+
+    for upload_file in files:
+        try:
+            content = await upload_file.read()
+            processed = process_uploaded_file(
+                content, upload_file.filename or "unknown"
+            )
+            processed_files.append(FileAttachment(**processed))
+        except FileProcessingError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to process file: {type(exc).__name__}",
+            ) from exc
+        finally:
+            await upload_file.close()
+
+    return processed_files
+
+
 # =========================
 # WebSocket Endpoints
 # =========================
@@ -355,26 +394,7 @@ async def chatbot_reply_with_files(
             detail="Either message or files must be provided.",
         )
 
-    # Process uploaded files
-    processed_files: List[FileAttachment] = []
-
-    if files:
-        for upload_file in files:
-            try:
-                content = await upload_file.read()
-                processed = process_uploaded_file(
-                    content, upload_file.filename or "unknown"
-                )
-                processed_files.append(FileAttachment(**processed))
-            except FileProcessingError as e:
-                raise HTTPException(status_code=400, detail=str(e)) from e
-            except Exception as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to process file: {type(e).__name__}",
-                ) from e
-            finally:
-                await upload_file.close()
+    processed_files = await _process_uploaded_files(files)
 
     # Use default message if only files provided
     final_message = (

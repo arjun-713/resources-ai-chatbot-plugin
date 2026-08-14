@@ -70,7 +70,12 @@ class ProviderManager:
     @contextmanager
     def activate(self, provider_id: str = "local") -> Iterator[LLMProvider]:
         """Activate a provider and restore the previous provider afterwards."""
-        provider = self.resolve(provider_id)
+        with self.activate_provider(self.resolve(provider_id)) as provider:
+            yield provider
+
+    @contextmanager
+    def activate_provider(self, provider: LLMProvider) -> Iterator[LLMProvider]:
+        """Activate an already-resolved provider for the current request."""
         token = _CURRENT_PROVIDER.set(provider)
         try:
             yield provider

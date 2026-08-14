@@ -289,10 +289,12 @@ def chatbot_reply(session_id: str, request: ChatRequest, _background_tasks: Back
             detail="Session not found.",
         )
     try:
-        with provider_manager.activate(request.provider):
-            reply = get_chatbot_reply(session_id, request.message)
+        provider = provider_manager.resolve(request.provider)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    with provider_manager.activate_provider(provider):
+        reply = get_chatbot_reply(session_id, request.message)
     _background_tasks.add_task(
         persist_session,
         session_id,

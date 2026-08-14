@@ -340,6 +340,11 @@ async def chatbot_reply_with_files(
     if not session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found.")
 
+    try:
+        selected_provider = provider_manager.resolve(provider)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     # Validate that at least message or files are provided
     has_message = message and message.strip()
     has_files = files and len(files) > 0
@@ -378,16 +383,13 @@ async def chatbot_reply_with_files(
         else "Please analyze the attached file(s)."
     )
 
-    try:
-        with provider_manager.activate(provider):
-            reply = await asyncio.to_thread(
-                get_chatbot_reply,
-                session_id,
-                final_message,
-                processed_files if processed_files else None
-            )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    with provider_manager.activate_provider(selected_provider):
+        reply = await asyncio.to_thread(
+            get_chatbot_reply,
+            session_id,
+            final_message,
+            processed_files if processed_files else None
+        )
     background_tasks.add_task(
         persist_session,
         session_id,

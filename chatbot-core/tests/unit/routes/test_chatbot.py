@@ -19,18 +19,20 @@ def test_get_providers_returns_safe_catalog_metadata(client, mocker):
         "api.routes.chatbot.load_provider_catalog",
         return_value=(
             ProviderDefinition(
-                id="local",
-                label="Local",
-                model="llama.cpp",
+                id="test_local",
+                label="Test Local",
+                model="test-local",
             ),
             ProviderDefinition(
-                id="groq",
-                label="Groq",
-                model="groq/model",
+                id="test_hosted",
+                label="Test Hosted",
+                model="test/hosted-model",
             ),
         ),
     )
-    mocker.patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}, clear=False)
+    mocker.patch.dict(
+        "os.environ", {"TEST_HOSTED_API_KEY": "test-key"}, clear=False
+    )
 
     response = client.get("/providers")
 
@@ -38,15 +40,15 @@ def test_get_providers_returns_safe_catalog_metadata(client, mocker):
     assert response.json() == {
         "providers": [
             {
-                "id": "local",
-                "label": "Local",
-                "model": "llama.cpp",
+                "id": "test_local",
+                "label": "Test Local",
+                "model": "test-local",
                 "configured": True,
             },
             {
-                "id": "groq",
-                "label": "Groq",
-                "model": "groq/model",
+                "id": "test_hosted",
+                "label": "Test Hosted",
+                "model": "test/hosted-model",
                 "configured": True,
             },
         ]

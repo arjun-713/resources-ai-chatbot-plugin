@@ -67,11 +67,7 @@ const ProviderIcon = ({
   return (
     <span style={chatbotStyles.providerOptionIcon} aria-hidden="true">
       {logoSource ? (
-        <img
-          src={logoSource}
-          alt=""
-          style={chatbotStyles.providerOptionLogo}
-        />
+        <img src={logoSource} alt="" style={chatbotStyles.providerOptionLogo} />
       ) : (
         <span style={chatbotStyles.providerOptionInitial}>
           {getProviderInitial(label, providerId)}

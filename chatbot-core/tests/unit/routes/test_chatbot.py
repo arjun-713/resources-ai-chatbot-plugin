@@ -19,7 +19,7 @@ def test_get_providers_returns_safe_catalog_metadata(client, mocker):
         "api.routes.chatbot.load_provider_catalog",
         return_value=(
             ProviderDefinition(
-                id="test_local",
+                id="local",
                 label="Test Local",
                 model="test-local",
             ),
@@ -40,7 +40,7 @@ def test_get_providers_returns_safe_catalog_metadata(client, mocker):
     assert response.json() == {
         "providers": [
             {
-                "id": "test_local",
+                "id": "local",
                 "label": "Test Local",
                 "model": "test-local",
                 "configured": True,

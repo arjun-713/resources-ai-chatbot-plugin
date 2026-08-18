@@ -13,7 +13,9 @@ from urllib.request import urlopen
 import networkx as nx
 
 from rag.graph.graph_artifacts import (
+    COMBINED_GRAPH_SOURCE,
     DEPENDENCY_METADATA_SOURCE,
+    GRAPH_SOURCE,
     GraphArtifactPaths,
     write_graph_artifacts,
 )
@@ -346,6 +348,11 @@ def run_graph_build(
         chunks,
         logger,
         paths=artifact_paths,
+        graph_source=(
+            COMBINED_GRAPH_SOURCE
+            if update_center_path is not None
+            else GRAPH_SOURCE
+        ),
         dependency_metadata_source=(
             UPDATE_CENTER_DATA_SOURCE
             if update_center_path is not None

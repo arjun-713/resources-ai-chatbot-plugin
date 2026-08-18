@@ -12,7 +12,11 @@ from urllib.request import urlopen
 
 import networkx as nx
 
-from rag.graph.graph_artifacts import GraphArtifactPaths, write_graph_artifacts
+from rag.graph.graph_artifacts import (
+    DEPENDENCY_METADATA_SOURCE,
+    GraphArtifactPaths,
+    write_graph_artifacts,
+)
 from rag.graph.graph_builder import build_graph, build_graph_from_chunks
 from rag.graph.json_loader import load_json_list
 from rag.graph.models import GraphEntity, GraphEvidence, Triple
@@ -342,6 +346,11 @@ def run_graph_build(
         chunks,
         logger,
         paths=artifact_paths,
+        dependency_metadata_source=(
+            UPDATE_CENTER_DATA_SOURCE
+            if update_center_path is not None
+            else DEPENDENCY_METADATA_SOURCE
+        ),
     )
 
     logger.info(

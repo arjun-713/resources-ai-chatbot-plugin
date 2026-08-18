@@ -99,6 +99,7 @@ def build_extraction_report(
     chunks: list[dict],
     triples: list[Triple],
     graph: nx.MultiDiGraph,
+    dependency_metadata_source: str = DEPENDENCY_METADATA_SOURCE,
 ) -> dict[str, Any]:
     """
     Build summary counters for graph extraction artifacts.
@@ -107,6 +108,7 @@ def build_extraction_report(
         chunks (list[dict]): Source plugin chunks used for extraction.
         triples (list[Triple]): Extracted triples.
         graph (nx.MultiDiGraph): Built graph artifact.
+        dependency_metadata_source (str): Dependency metadata source used for the build.
 
     Returns:
         dict[str, Any]: Extraction summary counters.
@@ -115,7 +117,7 @@ def build_extraction_report(
 
     return {
         "graph_source": GRAPH_SOURCE,
-        "dependency_metadata": DEPENDENCY_METADATA_SOURCE,
+        "dependency_metadata": dependency_metadata_source,
         "chunk_count": len(chunks),
         "triple_count": len(triples),
         "node_count": graph.number_of_nodes(),
@@ -147,6 +149,7 @@ def write_graph_artifacts(
     chunks: list[dict],
     logger,
     paths: GraphArtifactPaths = GraphArtifactPaths(),
+    dependency_metadata_source: str = DEPENDENCY_METADATA_SOURCE,
 ) -> dict[str, Any]:
     """
     Write graph, triples, and extraction report artifacts.
@@ -157,11 +160,17 @@ def write_graph_artifacts(
         chunks (list[dict]): Source chunks used for extraction.
         logger (logging.Logger): Logger for artifact status or errors.
         paths (GraphArtifactPaths): Destination artifact paths.
+        dependency_metadata_source (str): Dependency metadata source used for the build.
 
     Returns:
         dict[str, Any]: Extraction report payload.
     """
-    report = build_extraction_report(chunks, triples, graph)
+    report = build_extraction_report(
+        chunks,
+        triples,
+        graph,
+        dependency_metadata_source=dependency_metadata_source,
+    )
 
     save_graph(graph, str(paths.graph_path), logger)
     write_triples(triples, paths.triples_path, logger)

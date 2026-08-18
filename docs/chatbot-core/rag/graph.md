@@ -294,3 +294,4 @@ When investigating a failure, classify it as one of the following before changin
 * Expose graph freshness and artifact health.
 * Support more Jenkins entities and relationship types.
 * Improve provenance handling when sources disagree.
+* Add an agentic graph-query verifier for parser fallbacks. The verifier would return a structured graph plan, including whether the query is graph-related and its direction, and the result would be validated against known plugin IDs and supported relationships before traversal.

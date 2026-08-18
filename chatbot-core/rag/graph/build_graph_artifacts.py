@@ -16,6 +16,7 @@ from rag.graph.graph_artifacts import (
     COMBINED_GRAPH_SOURCE,
     DEPENDENCY_METADATA_SOURCE,
     GRAPH_SOURCE,
+    GraphArtifactConfig,
     GraphArtifactPaths,
     write_graph_artifacts,
 )
@@ -347,16 +348,18 @@ def run_graph_build(
         triples,
         chunks,
         logger,
-        paths=artifact_paths,
-        graph_source=(
-            COMBINED_GRAPH_SOURCE
-            if update_center_path is not None
-            else GRAPH_SOURCE
-        ),
-        dependency_metadata_source=(
-            UPDATE_CENTER_DATA_SOURCE
-            if update_center_path is not None
-            else DEPENDENCY_METADATA_SOURCE
+        config=GraphArtifactConfig(
+            paths=artifact_paths,
+            graph_source=(
+                COMBINED_GRAPH_SOURCE
+                if update_center_path is not None
+                else GRAPH_SOURCE
+            ),
+            dependency_metadata_source=(
+                UPDATE_CENTER_DATA_SOURCE
+                if update_center_path is not None
+                else DEPENDENCY_METADATA_SOURCE
+            ),
         ),
     )
 

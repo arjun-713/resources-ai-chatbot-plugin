@@ -255,6 +255,7 @@ def retrieve_graph_relations(
     query: str,
     plugin_lookup: PluginLookup,
     graph: nx.MultiDiGraph,
+    logger=None,
 ) -> GraphRetrievalResult | None:
     """
     Retrieve graph relations for a relational plugin query.
@@ -263,25 +264,43 @@ def retrieve_graph_relations(
         query (str): User query text.
         plugin_lookup (PluginLookup): Canonical plugin lookup built from IDs.
         graph (nx.MultiDiGraph): Loaded plugin relation graph.
+        logger (logging.Logger | None): Optional logger for retrieval decisions.
 
     Returns:
         GraphRetrievalResult | None: Structured graph retrieval output when matched.
     """
     plan = parse_graph_query(query, plugin_lookup)
     if not plan:
+        if logger:
+            logger.debug("Graph query not recognized; using semantic retrieval fallback.")
         return None
 
     plan_entities = (plan.source_entity, plan.target_entity)
     if any(entity is not None and entity.entity_id not in graph for entity in plan_entities):
+        if logger:
+            logger.debug("Graph query entity not found; using semantic retrieval fallback.")
         return None
 
     anchor = plan.source_entity or plan.target_entity
     if anchor is None:
+        if logger:
+            logger.debug("Graph query has no anchor entity; using semantic retrieval fallback.")
         return None
+
+    relations = collect_graph_relations(graph, plan)
+    if logger:
+        logger.info(
+            "Graph query matched: direction=%s source=%s target=%s depth=%d relations=%d",
+            plan.direction,
+            plan.source_entity.entity_id if plan.source_entity else "unknown",
+            plan.target_entity.entity_id if plan.target_entity else "unknown",
+            plan.traversal_depth,
+            len(relations),
+        )
 
     return GraphRetrievalResult(
         query_entity=anchor.name,
         matched_entity_id=anchor.entity_id,
-        relations=collect_graph_relations(graph, plan),
+        relations=relations,
         traversal_depth=plan.traversal_depth,
     )

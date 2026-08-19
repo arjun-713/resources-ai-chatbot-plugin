@@ -132,6 +132,7 @@ def build_graph_runtime_context(
         query,
         graph_context.plugin_lookup,
         graph_context.graph,
+        logger=logger,
     )
     if result is None:
         return ""

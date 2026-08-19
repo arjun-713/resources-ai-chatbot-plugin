@@ -102,6 +102,21 @@ class TestSearchPluginDocs:
         assert result == "graph result"
         mock_extract.assert_not_called()
 
+    @patch("api.tools.tools.build_graph_runtime_context")
+    @patch("api.tools.tools.retrieve_documents")
+    @patch("api.tools.tools.extract_top_chunks")
+    def test_returns_empty_context_when_both_sources_are_empty(
+        self, mock_extract, mock_retrieve, mock_graph_context
+    ):
+        """Test empty graph and plugin results use the configured fallback."""
+        mock_retrieve.return_value = ([], [], [], [])
+        mock_extract.return_value = ""
+        mock_graph_context.return_value = ""
+
+        result = search_plugin_docs("query", "keywords", MagicMock())
+
+        assert result == CONFIG["retrieval"]["empty_context_message"]
+
 
 class TestSearchJenkinsDocs:
     """Tests for search_jenkins_docs function."""

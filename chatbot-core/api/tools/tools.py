@@ -51,7 +51,7 @@ def search_plugin_docs(query: str, keywords: str, logger, plugin_name: Optional[
             plugin_name
         )
 
-    return extract_top_chunks(
+    plugin_context = extract_top_chunks(
         data_retrieved_semantic,
         scores_semantic,
         data_retrieved_keyword,
@@ -59,6 +59,7 @@ def search_plugin_docs(query: str, keywords: str, logger, plugin_name: Optional[
         top_k=retrieval_config["top_k_plugins"],
         logger=logger
     )
+    return plugin_context or retrieval_config["empty_context_message"]
 
 def search_jenkins_docs(query: str, keywords: str, logger) -> str:
     """

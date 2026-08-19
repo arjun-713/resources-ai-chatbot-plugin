@@ -4,7 +4,11 @@ chat history, context retrieved from the knowledge base, and the user's question
 """
 from typing import Optional
 from langchain.memory import ConversationBufferMemory
-from api.prompts.prompts import SYSTEM_INSTRUCTION, LOG_ANALYSIS_INSTRUCTION
+from api.prompts.prompts import (
+    GRAPH_QUERY_INSTRUCTION,
+    LOG_ANALYSIS_INSTRUCTION,
+    SYSTEM_INSTRUCTION,
+)
 
 def build_prompt(
     user_query: str,
@@ -44,6 +48,9 @@ def build_prompt(
         # Otherwise, use the standard Friendly Assistant prompt
         system_prompt = SYSTEM_INSTRUCTION
         log_section = ""
+
+    if not log_context and "[Source: plugin_relation_graph]" in context:
+        system_prompt += GRAPH_QUERY_INSTRUCTION
 
     prompt = f"""{system_prompt}
             Chat History:

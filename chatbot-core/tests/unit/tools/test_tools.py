@@ -73,17 +73,18 @@ class TestSearchPluginDocs:
     @patch("api.tools.tools.build_graph_runtime_context")
     @patch("api.tools.tools.retrieve_documents")
     @patch("api.tools.tools.extract_top_chunks")
-    def test_appends_graph_context(
+    def test_returns_graph_context_before_plugin_extraction(
         self, mock_extract, mock_retrieve, mock_graph_context
     ):
-        """Test plugin search appends GraphRAG context when available."""
+        """Test graph context takes priority over plugin extraction."""
         mock_retrieve.return_value = (["doc1"], [0.9], ["doc2"], [0.8])
         mock_extract.return_value = "plugin result"
         mock_graph_context.return_value = "graph result"
 
         result = search_plugin_docs("query", "keywords", MagicMock())
 
-        assert result == "plugin result\n\ngraph result"
+        assert result == "graph result"
+        mock_extract.assert_not_called()
 
     @patch("api.tools.tools.build_graph_runtime_context")
     @patch("api.tools.tools.retrieve_documents")
@@ -99,6 +100,7 @@ class TestSearchPluginDocs:
         result = search_plugin_docs("query", "keywords", MagicMock())
 
         assert result == "graph result"
+        mock_extract.assert_not_called()
 
 
 class TestSearchJenkinsDocs:

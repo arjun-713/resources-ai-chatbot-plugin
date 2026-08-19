@@ -29,6 +29,10 @@ def search_plugin_docs(query: str, keywords: str, logger, plugin_name: Optional[
     Returns:
         str: The result of the research of the plugin search tool.
     """
+    graph_context = build_graph_runtime_context(query, logger)
+    if graph_context:
+        return graph_context
+
     source_name = CONFIG["tool_names"]["plugins"]
     data_retrieved_semantic, scores_semantic, data_retrieved_keyword, scores_keyword = (
         retrieve_documents(
@@ -47,7 +51,7 @@ def search_plugin_docs(query: str, keywords: str, logger, plugin_name: Optional[
             plugin_name
         )
 
-    plugin_context = extract_top_chunks(
+    return extract_top_chunks(
         data_retrieved_semantic,
         scores_semantic,
         data_retrieved_keyword,
@@ -55,14 +59,6 @@ def search_plugin_docs(query: str, keywords: str, logger, plugin_name: Optional[
         top_k=retrieval_config["top_k_plugins"],
         logger=logger
     )
-    graph_context = build_graph_runtime_context(query, logger)
-
-    if not graph_context:
-        return plugin_context
-    if plugin_context == retrieval_config["empty_context_message"]:
-        return graph_context
-
-    return f"{plugin_context}\n\n{graph_context}"
 
 def search_jenkins_docs(query: str, keywords: str, logger) -> str:
     """

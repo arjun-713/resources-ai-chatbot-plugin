@@ -3,7 +3,12 @@
 import networkx as nx
 
 from rag.graph.graph_retriever import retrieve_graph_relations
-from rag.graph.hybrid_context import build_chunk_lookup, format_graph_retrieval_result
+from rag.graph.hybrid_context import (
+    MAX_GRAPH_CONTEXT_RELATIONS,
+    build_chunk_lookup,
+    format_graph_retrieval_result,
+)
+from rag.graph.models import GraphRetrievalResult
 from rag.graph.query_parser import (
     detect_graph_relation_types,
     normalize_graph_query,
@@ -321,3 +326,25 @@ def test_format_graph_retrieval_result_includes_source_chunk_context():
     assert "Evidence: Blue Ocean depends on Git." in context
     assert "Context:\nBlue Ocean depends on Git. Extra setup detail." in context
     assert "Source Chunk ID: chunk-blue-git" in context
+
+
+def test_format_graph_retrieval_result_limits_prompt_relations():
+    """Limit prompt context while retaining the complete retrieval result."""
+    relation = retrieve_graph_relations(
+        "What does Blue Ocean depend on?",
+        PLUGIN_LOOKUP,
+        build_test_graph(),
+    ).relations[0]
+    result = GraphRetrievalResult(
+        query_entity="blueocean",
+        matched_entity_id="blueocean",
+        relations=(relation,) * (MAX_GRAPH_CONTEXT_RELATIONS + 1),
+    )
+
+    context = format_graph_retrieval_result(result)
+
+    assert (
+        f"Graph results are limited to the first {MAX_GRAPH_CONTEXT_RELATIONS} "
+        f"of {MAX_GRAPH_CONTEXT_RELATIONS + 1} relations."
+    ) in context
+    assert context.count("[Source: plugin_relation_graph]") == MAX_GRAPH_CONTEXT_RELATIONS

@@ -28,7 +28,11 @@ from api.tools.utils import (
     make_placeholder_replacer,
     validate_tool_calls,
 )
-from rag.graph.runtime_context import build_graph_runtime_context
+try:
+    from rag.graph.runtime_context import build_graph_runtime_context
+except ImportError:
+    build_graph_runtime_context = None
+
 from rag.retriever.retrieve import get_relevant_documents
 from utils import LoggerFactory
 
@@ -459,9 +463,12 @@ def retrieve_context(user_input: str) -> str:
             text = re.sub(CODE_BLOCK_PLACEHOLDER_PATTERN, replace, text)
             context_texts.append(f"[Source: {source_name}]\n{text}")
 
-    graph_context = build_graph_runtime_context(user_input, logger)
-    if graph_context:
-        context_texts.append(graph_context)
+    if build_graph_runtime_context is None:
+        logger.warning("GraphRAG is unavailable; using semantic retrieval only.")
+    else:
+        graph_context = build_graph_runtime_context(user_input, logger)
+        if graph_context:
+            context_texts.append(graph_context)
 
     if not context_texts:
         logger.warning(retrieval_config["empty_context_message"])

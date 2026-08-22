@@ -606,12 +606,18 @@ async def generate_answer_stream(
 
 
 async def get_chatbot_reply_stream(
-        session_id: str, user_input: str) -> AsyncGenerator[str, None]:
+        session_id: str,
+        user_input: str,
+        log_context: Optional[str] = None,
+) -> AsyncGenerator[str, None]:
     """
     Streaming version of get_chatbot_reply for WebSocket clients.
+
     Args:
         session_id: Unique session identifier
         user_input: User's message
+        log_context: Sanitized Jenkins log excerpt
+
     Yields:
         str: Individual tokens from LLM response
     """
@@ -624,10 +630,25 @@ async def get_chatbot_reply_stream(
         raise RuntimeError(
             f"Session '{session_id}' not found in memory store.")
 
-    context = retrieve_context(user_input)
+    relevant_log_context = log_context.strip() if log_context else ""
+    clean_user_input = _remove_embedded_log_context(
+        user_input,
+        relevant_log_context,
+    )
+    retrieval_query = _build_retrieval_query(
+        clean_user_input,
+        relevant_log_context,
+    )
+
+    context = retrieve_context(retrieval_query)
     logger.debug("Context retrieved: %s", _sanitize_log_payload(context))
 
-    prompt = build_prompt(user_input, context, memory)
+    prompt = build_prompt(
+        clean_user_input,
+        context,
+        memory,
+        log_context=relevant_log_context,
+    )
     logger.debug(
         "Generating streaming answer with prompt: %s",
         _sanitize_log_payload(prompt)
@@ -638,7 +659,7 @@ async def get_chatbot_reply_stream(
         full_reply += token
         yield token
 
-    memory.chat_memory.add_user_message(user_input)
+    memory.chat_memory.add_user_message(clean_user_input)
     memory.chat_memory.add_ai_message(full_reply)
 
 

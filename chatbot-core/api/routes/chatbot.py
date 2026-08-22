@@ -141,13 +141,22 @@ async def chatbot_stream(websocket: WebSocket, session_id: str):
                 continue
 
             user_message = message_data.get("message", "")
+            raw_log_context = message_data.get("log_context")
+            log_context = (
+                raw_log_context if isinstance(raw_log_context, str) else None
+            )
 
             if not user_message:
                 continue
 
+            stream_kwargs = {
+                "log_context": log_context,
+            } if log_context else {}
+
             async for token in get_chatbot_reply_stream(
                 session_id,
                 user_message,
+                **stream_kwargs,
             ):
                 await websocket.send_text(
                     json.dumps({"token": token})

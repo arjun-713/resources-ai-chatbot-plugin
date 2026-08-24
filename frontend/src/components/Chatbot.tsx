@@ -224,8 +224,8 @@ export const Chatbot = () => {
 
     const fileAttachments = attachedFiles.map(fileToAttachment);
     const displayMessage =
-      buildDisplayedMessage(messageForRequest, logContext)
-      || (hasFiles ? "📎 Attached file(s)" : "");
+      buildDisplayedMessage(messageForRequest, logContext) ||
+      (hasFiles ? "📎 Attached file(s)" : "");
 
     const userMessage: Message = {
       id: uuidv4(),

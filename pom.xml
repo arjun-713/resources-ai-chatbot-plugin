@@ -126,6 +126,7 @@
                     </not>
                   </condition>
                 </fail>
+                <delete dir="${project.build.directory}/frontend-hpi-check" />
                 <unzip dest="${project.build.directory}/frontend-hpi-check" src="${hpi.path}" />
                 <fail message="Packaged frontend stylesheet is missing.">
                   <condition>

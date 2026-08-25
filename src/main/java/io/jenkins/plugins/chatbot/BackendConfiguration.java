@@ -1,6 +1,7 @@
 package io.jenkins.plugins.chatbot;
 
 import hudson.Extension;
+import hudson.ExtensionList;
 import hudson.model.Descriptor;
 import java.net.URI;
 import jenkins.model.GlobalConfiguration;
@@ -18,6 +19,15 @@ public class BackendConfiguration extends GlobalConfiguration {
 
     public BackendConfiguration() {
         load();
+    }
+
+    /**
+     * Returns the Jenkins-wide backend configuration.
+     *
+     * @return the backend configuration singleton
+     */
+    public static BackendConfiguration get() {
+        return ExtensionList.lookupSingleton(BackendConfiguration.class);
     }
 
     /**

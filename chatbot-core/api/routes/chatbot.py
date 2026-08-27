@@ -12,6 +12,7 @@ to the chat service logic.
 import json
 import logging
 import asyncio
+import os
 
 # =========================
 # Third-party imports
@@ -41,10 +42,14 @@ from api.models.schemas import (
     SessionResponse,
     FileAttachment,
     SupportedExtensionsResponse,
+    ProviderMetadata,
+    ProvidersResponse,
 )
+from api.config.providers import load_provider_catalog
 from api.services.chat_service import (
     get_chatbot_reply,
     get_chatbot_reply_stream,
+    provider_manager,
 )
 from api.services.memory import (
     delete_session,
@@ -78,6 +83,69 @@ except ImportError:
     logger.warning("Retrieval not available - limited functionality")
 
 router = APIRouter()
+
+
+async def _process_uploaded_files(
+    files: Optional[List[UploadFile]],
+) -> List[FileAttachment]:
+    """Process uploaded files and close each upload after reading it.
+
+    Args:
+        files: Uploaded files received from the multipart request.
+
+    Returns:
+        Processed file attachments.
+
+    Raises:
+        HTTPException: If an uploaded file cannot be processed.
+    """
+    processed_files: List[FileAttachment] = []
+
+    if not files:
+        return processed_files
+
+    for upload_file in files:
+        try:
+            content = await upload_file.read()
+            processed = process_uploaded_file(
+                content, upload_file.filename or "unknown"
+            )
+            processed_files.append(FileAttachment(**processed))
+        except FileProcessingError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to process file: {type(exc).__name__}",
+            ) from exc
+        finally:
+            await upload_file.close()
+
+    return processed_files
+
+
+@router.get("/providers", response_model=ProvidersResponse)
+def get_providers() -> ProvidersResponse:
+    """Return safe metadata for configured providers.
+
+    Returns:
+        ProvidersResponse: Provider metadata and configuration status.
+    """
+    providers = load_provider_catalog()
+    return ProvidersResponse(
+        providers=[
+            ProviderMetadata(
+                id=provider.id,
+                label=provider.label,
+                model=provider.model,
+                configured=(
+                    provider.id == "local"
+                    or bool(os.getenv(provider.api_key_env))
+                ),
+            )
+            for provider in providers
+        ]
+    )
 
 
 # =========================
@@ -131,17 +199,31 @@ async def chatbot_stream(websocket: WebSocket, session_id: str):
                 continue
 
             user_message = message_data.get("message", "")
+            provider_id = message_data.get("provider", "local")
 
             if not user_message:
                 continue
 
-            async for token in get_chatbot_reply_stream(
-                session_id,
-                user_message,
-            ):
+            if not isinstance(provider_id, str):
                 await websocket.send_text(
-                    json.dumps({"token": token})
+                    json.dumps({"error": "Provider ID must be a string."})
                 )
+                continue
+
+            try:
+                with provider_manager.activate(provider_id):
+                    async for token in get_chatbot_reply_stream(
+                        session_id,
+                        user_message,
+                    ):
+                        await websocket.send_text(
+                            json.dumps({"token": token})
+                        )
+            except ValueError as exc:
+                await websocket.send_text(
+                    json.dumps({"error": str(exc)})
+                )
+                continue
 
             await websocket.send_text(
                 json.dumps({"end": True})
@@ -273,7 +355,13 @@ def chatbot_reply(session_id: str, request: ChatRequest, _background_tasks: Back
             status_code=404,
             detail="Session not found.",
         )
-    reply =  get_chatbot_reply(session_id, request.message)
+    try:
+        provider = provider_manager.resolve(request.provider)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    with provider_manager.activate_provider(provider):
+        reply = get_chatbot_reply(session_id, request.message)
     _background_tasks.add_task(
         persist_session,
         session_id,
@@ -291,6 +379,7 @@ async def chatbot_reply_with_files(
     background_tasks: BackgroundTasks,
     message: str = Form(...),
     files: Optional[List[UploadFile]] = File(None),
+    provider: str = Form("local"),
 ):
     """
     POST endpoint to handle chatbot replies with file uploads.
@@ -318,6 +407,11 @@ async def chatbot_reply_with_files(
     if not session_exists(session_id):
         raise HTTPException(status_code=404, detail="Session not found.")
 
+    try:
+        selected_provider = provider_manager.resolve(provider)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     # Validate that at least message or files are provided
     has_message = message and message.strip()
     has_files = files and len(files) > 0
@@ -328,26 +422,7 @@ async def chatbot_reply_with_files(
             detail="Either message or files must be provided.",
         )
 
-    # Process uploaded files
-    processed_files: List[FileAttachment] = []
-
-    if files:
-        for upload_file in files:
-            try:
-                content = await upload_file.read()
-                processed = process_uploaded_file(
-                    content, upload_file.filename or "unknown"
-                )
-                processed_files.append(FileAttachment(**processed))
-            except FileProcessingError as e:
-                raise HTTPException(status_code=400, detail=str(e)) from e
-            except Exception as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to process file: {type(e).__name__}",
-                ) from e
-            finally:
-                await upload_file.close()
+    processed_files = await _process_uploaded_files(files)
 
     # Use default message if only files provided
     final_message = (
@@ -356,12 +431,13 @@ async def chatbot_reply_with_files(
         else "Please analyze the attached file(s)."
     )
 
-    reply = await asyncio.to_thread(
-        get_chatbot_reply,
-        session_id,
-        final_message,
-        processed_files if processed_files else None
-    )
+    with provider_manager.activate_provider(selected_provider):
+        reply = await asyncio.to_thread(
+            get_chatbot_reply,
+            session_id,
+            final_message,
+            processed_files if processed_files else None
+        )
     background_tasks.add_task(
         persist_session,
         session_id,

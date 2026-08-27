@@ -307,8 +307,7 @@ export const chatbotStyles = {
     border: "1px solid var(--chatbot-provider-border)",
     borderRadius: "12px",
     backgroundColor: "var(--chatbot-provider-surface)",
-    boxShadow:
-      "var(--chatbot-provider-control-shadow)",
+    boxShadow: "var(--chatbot-provider-control-shadow)",
     color: "var(--text-color)",
     font: "inherit",
     cursor: "pointer",
@@ -352,8 +351,7 @@ export const chatbotStyles = {
     backgroundColor: "var(--chatbot-provider-menu-surface)",
     border: "1px solid var(--chatbot-provider-border)",
     borderRadius: "14px",
-    boxShadow:
-      "var(--chatbot-provider-menu-shadow)",
+    boxShadow: "var(--chatbot-provider-menu-shadow)",
     boxSizing: "border-box",
     zIndex: 10000,
     transform: "translateX(-50%)",

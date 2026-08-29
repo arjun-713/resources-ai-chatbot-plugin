@@ -15,6 +15,25 @@ export interface SupportedExtensions {
 }
 
 /**
+ * Checks whether the chatbot backend is reachable.
+ *
+ * @returns A Promise resolving to true when the backend health endpoint responds successfully
+ */
+export const checkBackendHealth = async (): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`, {
+      method: "GET",
+      signal: AbortSignal.timeout(CHATBOT_API_TIMEOUTS_MS.CREATE_SESSION),
+    });
+
+    return response.ok;
+  } catch (error: unknown) {
+    console.error("Failed to check chatbot backend health:", error);
+    return false;
+  }
+};
+
+/**
  * Send a request to the backend to create a new chat session and returns the id of the
  * chat session created.
  *

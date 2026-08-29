@@ -25,6 +25,7 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import { ProactiveToast } from "./Toast";
 import { useContextObserver } from "../utils/useContextObserver";
+import { ArrowUpRight } from "lucide-react";
 
 /**
  * Chatbot is the core component responsible for managing the chatbot display.
@@ -338,10 +339,32 @@ export const Chatbot = () => {
     return (
       <div style={chatbotStyles.containerWelcomePage}>
         <div style={chatbotStyles.boxWelcomePage}>
-          <h2 style={chatbotStyles.welcomePageH2}>
-            {getChatbotText("welcomeMessage")}
-          </h2>
-          <p>{getChatbotText("welcomeDescription")}</p>
+          <div style={chatbotStyles.welcomePageIntro}>
+            <h2 style={chatbotStyles.welcomePageH2}>
+              {getChatbotText("welcomeMessage")}
+            </h2>
+            <p>{getChatbotText("welcomeDescription")}</p>
+          </div>
+          <div style={chatbotStyles.welcomePageSetupInfo}>
+            <div style={chatbotStyles.welcomePageBackendMessage}>
+              <strong>{getChatbotText("backendNotConnected")}</strong>
+              <p style={chatbotStyles.welcomePageBackendDetails}>
+                {getChatbotText("backendStartInstruction")}
+                <code style={chatbotStyles.welcomePageCommand}>
+                  {getChatbotText("backendStartCommand")}
+                </code>
+              </p>
+            </div>
+            <a
+              href={getChatbotText("repositoryLink")}
+              target="_blank"
+              rel="noreferrer"
+              style={chatbotStyles.welcomePageRepositoryLink}
+            >
+              {getChatbotText("repositoryLinkLabel")}
+              <ArrowUpRight size={15} aria-hidden="true" />
+            </a>
+          </div>
           <button
             style={chatbotStyles.welcomePageNewChatButton}
             onClick={handleNewChat}

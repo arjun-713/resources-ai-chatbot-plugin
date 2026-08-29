@@ -110,16 +110,75 @@ export const chatbotStyles = {
   } as CSSProperties,
 
   boxWelcomePage: {
+    width: "100%",
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "30px",
     textAlign: "center",
     color: "#888",
   } as CSSProperties,
 
+  welcomePageIntro: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "11px",
+  } as CSSProperties,
+
   welcomePageH2: {
-    marginBottom: "0.5rem",
+    margin: 0,
+  } as CSSProperties,
+
+  welcomePageBackendMessage: {
+    margin: 0,
+    padding: "0.75rem 1rem",
+    width: "min(28rem, calc(100% - 2rem))",
+    border: "1px solid var(--border-color)",
+    borderRadius: "0.5rem",
+    backgroundColor: "var(--panel-background)",
+    color: "var(--text-color)",
+    textAlign: "center",
+    lineHeight: 1.5,
+  } as CSSProperties,
+
+  welcomePageBackendDetails: {
+    margin: "0.35rem 0 0",
+  } as CSSProperties,
+
+  welcomePageCommand: {
+    display: "inline-block",
+    padding: "0.125rem 0.375rem",
+    border: "1px solid var(--border-color)",
+    borderRadius: "0.25rem",
+    backgroundColor: "var(--input-color)",
+    fontFamily:
+      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontSize: "0.875em",
+  } as CSSProperties,
+
+  welcomePageRepositoryLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.25rem",
+    margin: 0,
+    color: "var(--link-color)",
+  } as CSSProperties,
+
+  welcomePageSetupInfo: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "9px",
+    width: "100%",
+    margin: 0,
   } as CSSProperties,
 
   welcomePageNewChatButton: {
     backgroundColor: "#0073e6",
+    display: "block",
+    margin: 0,
     padding: "1rem",
     borderRadius: "1rem",
     color: "#ffffff",

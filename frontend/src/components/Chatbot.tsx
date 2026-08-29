@@ -377,26 +377,28 @@ export const Chatbot = () => {
             </h2>
             <p>{getChatbotText("welcomeDescription")}</p>
           </div>
-          <div style={chatbotStyles.welcomePageSetupInfo}>
-            <div style={chatbotStyles.welcomePageBackendMessage}>
-              <strong>{getChatbotText("backendNotConnected")}</strong>
-              <p style={chatbotStyles.welcomePageBackendDetails}>
-                {getChatbotText("backendStartInstruction")}
-                <code style={chatbotStyles.welcomePageCommand}>
-                  {getChatbotText("backendStartCommand")}
-                </code>
-              </p>
+          {!isBackendConnected && (
+            <div style={chatbotStyles.welcomePageSetupInfo}>
+              <div style={chatbotStyles.welcomePageBackendMessage}>
+                <strong>{getChatbotText("backendNotConnected")}</strong>
+                <p style={chatbotStyles.welcomePageBackendDetails}>
+                  {getChatbotText("backendStartInstruction")}
+                  <code style={chatbotStyles.welcomePageCommand}>
+                    {getChatbotText("backendStartCommand")}
+                  </code>
+                </p>
+              </div>
+              <a
+                href={getChatbotText("repositoryLink")}
+                target="_blank"
+                rel="noreferrer"
+                style={chatbotStyles.welcomePageRepositoryLink}
+              >
+                {getChatbotText("repositoryLinkLabel")}
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </a>
             </div>
-            <a
-              href={getChatbotText("repositoryLink")}
-              target="_blank"
-              rel="noreferrer"
-              style={chatbotStyles.welcomePageRepositoryLink}
-            >
-              {getChatbotText("repositoryLinkLabel")}
-              <ArrowUpRight size={15} aria-hidden="true" />
-            </a>
-          </div>
+          )}
           <button
             style={chatbotStyles.welcomePageNewChatButton}
             onClick={handleNewChat}

@@ -34,6 +34,7 @@ import { ArrowUpRight } from "lucide-react";
 
 const LOG_PATTERN =
   /(Started by user|Running as SYSTEM|Building in workspace|FATAL:|ERROR:|Exception:|Stack trace|Build step .*? marked build as failure)/i;
+const BACKEND_HEALTH_POLL_INTERVAL_MS = 10000;
 
 export const Chatbot = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -70,7 +71,7 @@ export const Chatbot = () => {
   }, []);
 
   /**
-   * Checks the backend connection whenever the chatbot is opened.
+   * Checks the backend connection while the chatbot is open.
    */
   useEffect(() => {
     if (!isOpen) {
@@ -87,9 +88,14 @@ export const Chatbot = () => {
     };
 
     updateBackendStatus();
+    const intervalId = window.setInterval(
+      updateBackendStatus,
+      BACKEND_HEALTH_POLL_INTERVAL_MS,
+    );
 
     return () => {
       isMounted = false;
+      window.clearInterval(intervalId);
     };
   }, [isOpen]);
 

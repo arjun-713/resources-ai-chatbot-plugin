@@ -8,6 +8,7 @@ import {
   createChatSession,
   deleteChatSession,
   fetchSupportedExtensions,
+  checkBackendHealth,
   validateFile,
   fileToAttachment,
   type SupportedExtensions,
@@ -51,6 +52,7 @@ export const Chatbot = () => {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [supportedExtensions, setSupportedExtensions] =
     useState<SupportedExtensions | null>(null);
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
 
   const { showToast, setShowToast } = useContextObserver(isOpen);
 
@@ -66,6 +68,30 @@ export const Chatbot = () => {
     };
     loadSupportedExtensions();
   }, []);
+
+  /**
+   * Checks the backend connection whenever the chatbot is opened.
+   */
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const updateBackendStatus = async () => {
+      const backendConnected = await checkBackendHealth();
+      if (isMounted) {
+        setIsBackendConnected(backendConnected);
+      }
+    };
+
+    updateBackendStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   /**
    * Saving the chat sessions in the session storage only
@@ -439,6 +465,7 @@ export const Chatbot = () => {
           {isPopupOpen && getDeletePopup()}
           <Header
             currentSessionId={currentSessionId}
+            isBackendConnected={isBackendConnected}
             openSideBar={openSideBar}
             clearMessages={openConfirmDeleteChatPopup}
             messages={getSessionMessages(currentSessionId)}

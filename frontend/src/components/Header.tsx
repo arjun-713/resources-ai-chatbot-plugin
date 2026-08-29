@@ -22,6 +22,7 @@ import {
  */
 export interface HeaderProps {
   currentSessionId: string | null;
+  isBackendConnected: boolean;
   clearMessages: (chatSessionId: string) => void;
   openSideBar: () => void;
   messages: Message[];
@@ -34,11 +35,14 @@ export interface HeaderProps {
  */
 export const Header = ({
   currentSessionId,
+  isBackendConnected,
   clearMessages,
   openSideBar,
   messages,
 }: HeaderProps) => {
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showBackendStatusTooltip, setShowBackendStatusTooltip] =
+    useState(false);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -68,6 +72,28 @@ export const Header = ({
       >
         {getChatbotText("sidebarLabel")}
       </button>
+      <span
+        style={chatbotStyles.backendStatusContainer}
+        onMouseEnter={() => setShowBackendStatusTooltip(true)}
+        onMouseLeave={() => setShowBackendStatusTooltip(false)}
+        onFocus={() => setShowBackendStatusTooltip(true)}
+        onBlur={() => setShowBackendStatusTooltip(false)}
+        tabIndex={0}
+        aria-label={
+          isBackendConnected
+            ? "Assistant service connected"
+            : "Assistant service unavailable"
+        }
+      >
+        <span style={chatbotStyles.backendStatusDot(isBackendConnected)} />
+        {showBackendStatusTooltip && (
+          <span role="tooltip" style={chatbotStyles.backendStatusTooltip}>
+            {isBackendConnected
+              ? "Assistant service connected"
+              : "⚠ Assistant service unavailable"}
+          </span>
+        )}
+      </span>
       {currentSessionId !== null && (
         <div ref={exportMenuRef} style={chatbotStyles.headerActions}>
           <div style={{ position: "relative", display: "inline-block" }}>

@@ -342,6 +342,45 @@ export const chatbotStyles = {
     gap: "8px",
   } as CSSProperties,
 
+  backendStatusDot: (isConnected: boolean): CSSProperties => ({
+    width: "8px",
+    height: "8px",
+    borderRadius: "50%",
+    backgroundColor: isConnected ? "#16a34a" : "#dc2626",
+    boxShadow: "0 0 0 2px var(--panel-background)",
+  }),
+
+  backendStatusContainer: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "20px",
+    height: "20px",
+    marginRight: "auto",
+    borderRadius: "50%",
+    cursor: "default",
+    outline: "none",
+  } as CSSProperties,
+
+  backendStatusTooltip: {
+    position: "absolute",
+    bottom: "calc(100% + 8px)",
+    left: "50%",
+    zIndex: 2,
+    minWidth: "max-content",
+    padding: "6px 8px",
+    transform: "translateX(-50%)",
+    border: "1px solid var(--border-color, #d1d5db)",
+    borderRadius: "6px",
+    backgroundColor: "var(--card-background, #ffffff)",
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.14)",
+    color: "var(--text-color, #1f2937)",
+    fontSize: "12px",
+    fontWeight: "normal",
+    whiteSpace: "nowrap",
+  } as CSSProperties,
+
   clearButton: {
     backgroundColor: "transparent",
     border: "none",

@@ -34,7 +34,7 @@ import { ArrowUpRight } from "lucide-react";
 
 const LOG_PATTERN =
   /(Started by user|Running as SYSTEM|Building in workspace|FATAL:|ERROR:|Exception:|Stack trace|Build step .*? marked build as failure)/i;
-const BACKEND_HEALTH_POLL_INTERVAL_MS = 10000;
+const BACKEND_HEALTH_POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 export const Chatbot = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -54,6 +54,7 @@ export const Chatbot = () => {
   const [supportedExtensions, setSupportedExtensions] =
     useState<SupportedExtensions | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [lastBackendCheck, setLastBackendCheck] = useState<Date | null>(null);
 
   const { showToast, setShowToast } = useContextObserver(isOpen);
 
@@ -84,6 +85,7 @@ export const Chatbot = () => {
       const backendConnected = await checkBackendHealth();
       if (isMounted) {
         setIsBackendConnected(backendConnected);
+        setLastBackendCheck(new Date());
       }
     };
 
@@ -474,6 +476,7 @@ export const Chatbot = () => {
           <Header
             currentSessionId={currentSessionId}
             isBackendConnected={isBackendConnected}
+            lastBackendCheck={lastBackendCheck}
             openSideBar={openSideBar}
             clearMessages={openConfirmDeleteChatPopup}
             messages={getSessionMessages(currentSessionId)}

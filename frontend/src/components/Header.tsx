@@ -23,6 +23,7 @@ import {
 export interface HeaderProps {
   currentSessionId: string | null;
   isBackendConnected: boolean;
+  lastBackendCheck?: Date | null;
   clearMessages: (chatSessionId: string) => void;
   openSideBar: () => void;
   messages: Message[];
@@ -36,6 +37,7 @@ export interface HeaderProps {
 export const Header = ({
   currentSessionId,
   isBackendConnected,
+  lastBackendCheck = null,
   clearMessages,
   openSideBar,
   messages,
@@ -44,6 +46,9 @@ export const Header = ({
   const [showBackendStatusTooltip, setShowBackendStatusTooltip] =
     useState(false);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
+  const lastCheckedLabel = lastBackendCheck
+    ? `Last checked: ${lastBackendCheck.toLocaleTimeString()}`
+    : "Last check pending";
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -88,9 +93,12 @@ export const Header = ({
         <span style={chatbotStyles.backendStatusDot(isBackendConnected)} />
         {showBackendStatusTooltip && (
           <span role="tooltip" style={chatbotStyles.backendStatusTooltip}>
-            {isBackendConnected
-              ? "Assistant service connected"
-              : "⚠ Assistant service unavailable"}
+            <span>
+              {isBackendConnected
+                ? "Assistant service connected"
+                : "⚠ Assistant service unavailable"}
+            </span>
+            <span>{lastCheckedLabel}</span>
           </span>
         )}
       </span>

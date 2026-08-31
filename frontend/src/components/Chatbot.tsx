@@ -63,7 +63,6 @@ export const Chatbot = () => {
 
   useEffect(() => {
     if (!buildFailed || !isOpen || input.trim() || analysisActionSuppressed) {
-      setShowBuildAnalysisAction(false);
       return;
     }
 
@@ -180,6 +179,9 @@ export const Chatbot = () => {
 
   const handleInputChange = (value: string) => {
     setInput(value);
+    if (value.trim()) {
+      setShowBuildAnalysisAction(false);
+    }
     if (!value.trim()) {
       setAnalysisActionSuppressed(false);
     }
@@ -458,7 +460,10 @@ export const Chatbot = () => {
   return (
     <>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setShowBuildAnalysisAction(false);
+        }}
         style={chatbotStyles.toggleButton}
       >
         {getChatbotText("toggleButtonLabel")}
@@ -512,7 +517,12 @@ export const Chatbot = () => {
                 onFileRemoved={handleFileRemoved}
                 enableFileUpload={true}
                 validateFile={handleValidateFile}
-                showBuildFailureAction={showBuildAnalysisAction}
+                showBuildFailureAction={
+                  showBuildAnalysisAction &&
+                  buildFailed &&
+                  !input.trim() &&
+                  !analysisActionSuppressed
+                }
                 onAnalyzeBuild={prepareBuildFailureAnalysis}
               />
             </>

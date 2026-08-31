@@ -323,11 +323,11 @@ export const chatbotStyles = {
   //Header
 
   chatbotHeader: {
-    display: "flex",
     alignItems: "center",
+    display: "grid",
+    gridTemplateColumns: "1fr auto 1fr",
     gap: "8px",
-    flexDirection: "row",
-    justifyContent: "space-between",
+    position: "relative",
     padding: "1rem",
     backgroundColor: "var(--panel-background)",
     borderBottom: "var(--jenkins-border)",
@@ -340,6 +340,14 @@ export const chatbotStyles = {
     display: "flex",
     alignItems: "center",
     gap: "8px",
+    justifySelf: "end",
+  } as CSSProperties,
+
+  headerLeading: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    minWidth: 0,
   } as CSSProperties,
 
   backendStatusDot: (isConnected: boolean): CSSProperties => ({
@@ -357,7 +365,6 @@ export const chatbotStyles = {
     justifyContent: "center",
     width: "20px",
     height: "20px",
-    marginRight: "auto",
     borderRadius: "50%",
     cursor: "default",
     outline: "none",

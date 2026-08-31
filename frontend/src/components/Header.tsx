@@ -70,38 +70,40 @@ export const Header = ({
 
   return (
     <div style={chatbotStyles.chatbotHeader}>
-      <button
-        onClick={openSideBar}
-        style={chatbotStyles.openSidebarButton}
-        aria-label="Toggle sidebar"
-      >
-        {getChatbotText("sidebarLabel")}
-      </button>
-      <span
-        style={chatbotStyles.backendStatusContainer}
-        onMouseEnter={() => setShowBackendStatusTooltip(true)}
-        onMouseLeave={() => setShowBackendStatusTooltip(false)}
-        onFocus={() => setShowBackendStatusTooltip(true)}
-        onBlur={() => setShowBackendStatusTooltip(false)}
-        tabIndex={0}
-        aria-label={
-          isBackendConnected
-            ? "Assistant service connected"
-            : "Assistant service unavailable"
-        }
-      >
-        <span style={chatbotStyles.backendStatusDot(isBackendConnected)} />
-        {showBackendStatusTooltip && (
-          <span role="tooltip" style={chatbotStyles.backendStatusTooltip}>
-            <span>
-              {isBackendConnected
-                ? "Assistant service connected"
-                : "⚠ Assistant service unavailable"}
+      <div style={chatbotStyles.headerLeading}>
+        <button
+          onClick={openSideBar}
+          style={chatbotStyles.openSidebarButton}
+          aria-label="Toggle sidebar"
+        >
+          {getChatbotText("sidebarLabel")}
+        </button>
+        <span
+          style={chatbotStyles.backendStatusContainer}
+          onMouseEnter={() => setShowBackendStatusTooltip(true)}
+          onMouseLeave={() => setShowBackendStatusTooltip(false)}
+          onFocus={() => setShowBackendStatusTooltip(true)}
+          onBlur={() => setShowBackendStatusTooltip(false)}
+          tabIndex={0}
+          aria-label={
+            isBackendConnected
+              ? "Assistant service connected"
+              : "Assistant service unavailable"
+          }
+        >
+          <span style={chatbotStyles.backendStatusDot(isBackendConnected)} />
+          {showBackendStatusTooltip && (
+            <span role="tooltip" style={chatbotStyles.backendStatusTooltip}>
+              <span>
+                {isBackendConnected
+                  ? "Assistant service connected"
+                  : "⚠ Assistant service unavailable"}
+              </span>
+              <span>{lastCheckedLabel}</span>
             </span>
-            <span>{lastCheckedLabel}</span>
-          </span>
-        )}
-      </span>
+          )}
+        </span>
+      </div>
       {currentSessionId !== null && (
         <div ref={exportMenuRef} style={chatbotStyles.headerActions}>
           <div style={{ position: "relative", display: "inline-block" }}>

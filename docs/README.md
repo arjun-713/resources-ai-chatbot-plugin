@@ -38,8 +38,8 @@ To quickly start, in the root directory a `Makefile` contains many ready-to-go t
 
 In this doc file we'll use these targets, without going into the details of the scripts and the implementation reasonings. For further information you can visit the package-related doc files.
 
-For the setup you can follow [Setup Guide](setup.md).
-For macOS/Apple Silicon contributors, see the [macOS/Apple Silicon Setup Guide](macos-setup.md).
+For the setup you can follow the [Setup Guides](setup/README.md).
+For macOS/Apple Silicon contributors, see the [macOS/Apple Silicon Setup Guide](setup/macos.md).
 
 ## Data Pipeline
 

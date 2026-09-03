@@ -57,7 +57,7 @@ curl -X POST http://127.0.0.1:8000/api/chatbot/sessions
 
 Use this if you need to test the chatbot with real LLM responses or work on model-specific features.
 
-First, complete the full setup in [docs/setup.md](docs/setup.md). This includes installing llama-cpp-python and downloading the 4GB model.
+First, complete the full setup in the [setup guides](docs/setup/README.md). This includes installing llama-cpp-python and downloading the 4GB model.
 
 Then run:
 
@@ -104,7 +104,7 @@ The tutorial shows how to fork the repo, set up the backend, download the LLM mo
   ```bash
   pip install -r chatbot-core/requirements.txt
   ```
-- **llama-cpp-python installation fails**: Ensure build tools (gcc, cmake) are installed. See [docs/setup.md](docs/setup.md) for platform-specific instructions.
+- **llama-cpp-python installation fails**: Ensure build tools (gcc, cmake) are installed. See the [setup guides](docs/setup/README.md) for platform-specific instructions.
 
 ### Verification Steps
 
@@ -114,15 +114,15 @@ To confirm your local setup is correct:
 2. **Lite Mode Check**: Run `make dev-lite`. It should start without errors.
 3. **API Check**: Run `curl -X POST http://127.0.0.1:8000/api/chatbot/sessions`. It should return a default session response.
 
-For more details, see [docs/setup.md](docs/setup.md).
+For more details, see the [setup guides](docs/setup/README.md).
 
 ## Developer Documentation
 
 Development-related documentation can be found in the [`docs/`](docs/) directory.
 
-- [Setup Guide](docs/setup.md)
-- [Windows/WSL2 Setup Guide](docs/windows-setup.md) — for contributors on Windows machines
-- [macOS/Apple Silicon Setup Guide](docs/macos-setup.md) — for contributors on Mac M1/M2/M3
+- [Setup Guides](docs/setup/README.md)
+- [Windows/WSL2 Setup Guide](docs/setup/windows.md) — for contributors on Windows machines
+- [macOS/Apple Silicon Setup Guide](docs/setup/macos.md) — for contributors on Mac M1/M2/M3
 
 ## Contributing
 

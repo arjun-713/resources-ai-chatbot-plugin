@@ -280,7 +280,11 @@ def resolve_plugin_id(
 
     for candidate_form in candidate_forms:
         for plugin_id in plugin_lookup.get(candidate_form, ()):
-            if require_explicit_plugin_word and "plugin" not in candidate_key.split():
+            has_explicit_plugin_word = "plugin" in re.split(
+                r"[\s_-]+",
+                candidate_key,
+            )
+            if require_explicit_plugin_word and not has_explicit_plugin_word:
                 continue
             return plugin_id
 

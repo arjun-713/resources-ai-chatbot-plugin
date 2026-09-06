@@ -221,6 +221,16 @@ export const Chatbot = () => {
     const messageWithoutLog = logContext
       ? messageForRequest.replace(logContext, "").trim()
       : messageForRequest;
+    const isBuildAnalysis = trimmed.startsWith(ANALYZE_BUILD_MESSAGE);
+    const buildDescription =
+      isBuildAnalysis && buildContext
+        ? `\nBuild #${buildContext.buildNumber ?? "unknown"}${
+            buildContext.displayName ? ` (${buildContext.displayName})` : ""
+          }`
+        : "";
+    const requestMessage = `${
+      messageWithoutLog || ANALYZE_BUILD_MESSAGE
+    }${buildDescription}`;
 
     const fileAttachments = attachedFiles.map(fileToAttachment);
     const displayMessage = logContext
@@ -237,7 +247,12 @@ export const Chatbot = () => {
     setInput("");
     setAnalysisActionSuppressed(false);
     setPendingLogContext(null);
-    const filesToSend = [...attachedFiles];
+    const diagnosisFile = logContext
+      ? new File([logContext], "jenkins-build.log", { type: "text/plain" })
+      : null;
+    const filesToSend = diagnosisFile
+      ? [...attachedFiles, diagnosisFile]
+      : [...attachedFiles];
     setAttachedFiles([]);
     const isLogAnalysis =
       Boolean(logContext) || messageForRequest.includes("build failure");
@@ -262,16 +277,14 @@ export const Chatbot = () => {
         filesToSend.length > 0
           ? await fetchChatbotReplyWithFiles(
               currentSessionId,
-              messageWithoutLog || "Please analyze the attached file(s).",
+              requestMessage || "Please analyze the attached file(s).",
               filesToSend,
               controller.signal,
-              logContext,
             )
           : await fetchChatbotReply(
               currentSessionId,
-              messageWithoutLog,
+              requestMessage,
               controller.signal,
-              logContext,
             );
       appendMessageToCurrentSession(botReply);
     } catch (error) {

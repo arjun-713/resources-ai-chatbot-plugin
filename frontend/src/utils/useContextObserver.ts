@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
+import type { BuildContext } from "../model/BuildContext";
 
 interface BuildStatusResponse {
   result: string | null;
+  number?: number;
+  fullDisplayName?: string;
 }
 
 const buildStatusUrl = (): string => {
   const buildPath = window.location.pathname.replace(/\/console\/?$/, "");
-  return `${window.location.origin}${buildPath}/api/json?tree=result`;
+  return `${window.location.origin}${buildPath}/api/json?tree=result,number,fullDisplayName`;
 };
 
 /**
@@ -14,6 +17,7 @@ const buildStatusUrl = (): string => {
  */
 export const useContextObserver = (isChatOpen: boolean) => {
   const [buildFailed, setBuildFailed] = useState(false);
+  const [buildContext, setBuildContext] = useState<BuildContext | null>(null);
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
@@ -32,6 +36,7 @@ export const useContextObserver = (isChatOpen: boolean) => {
 
       if (!window.location.pathname.includes("/console")) {
         setBuildFailed(false);
+        setBuildContext(null);
         return;
       }
 
@@ -49,6 +54,10 @@ export const useContextObserver = (isChatOpen: boolean) => {
           return;
         }
         setBuildFailed(failed);
+        setBuildContext({
+          buildNumber: status.number ?? null,
+          displayName: status.fullDisplayName ?? null,
+        });
         if (!failed || isChatOpen) return;
 
         timer = setTimeout(() => {
@@ -57,6 +66,7 @@ export const useContextObserver = (isChatOpen: boolean) => {
         }, 2000);
       } catch {
         setBuildFailed(false);
+        setBuildContext(null);
         setShowToast(false);
       }
     };
@@ -69,5 +79,5 @@ export const useContextObserver = (isChatOpen: boolean) => {
     };
   }, [isChatOpen]);
 
-  return { buildFailed, showToast, setShowToast };
+  return { buildFailed, buildContext, showToast, setShowToast };
 };

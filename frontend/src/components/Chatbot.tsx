@@ -59,7 +59,8 @@ export const Chatbot = () => {
   const [analysisActionSuppressed, setAnalysisActionSuppressed] =
     useState(false);
 
-  const { buildFailed, showToast, setShowToast } = useContextObserver(isOpen);
+  const { buildFailed, buildContext, showToast, setShowToast } =
+    useContextObserver(isOpen);
 
   useEffect(() => {
     if (!buildFailed || !isOpen || input.trim() || analysisActionSuppressed) {
@@ -472,6 +473,7 @@ export const Chatbot = () => {
         <ProactiveToast
           onConfirm={prepareBuildFailureAnalysis}
           onDismiss={handleToastDismiss}
+          buildContext={buildContext}
         />
       )}
 

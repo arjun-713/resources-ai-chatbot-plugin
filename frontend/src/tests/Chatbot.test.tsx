@@ -278,13 +278,13 @@ describe("Chatbot component", () => {
     fireEvent.click(screen.getByText("Send Message"));
 
     await waitFor(() =>
-      expect(chatbotApi.fetchChatbotReplyWithFiles).toHaveBeenCalledWith(
+      expect(chatbotApi.fetchChatbotReply).toHaveBeenCalledWith(
         "session-1",
         "Analyze this Jenkins Build Failure.\nBuild #42 (example #42)",
         expect.anything(),
-        expect.anything(),
       ),
     );
+    expect(chatbotApi.fetchChatbotReplyWithFiles).not.toHaveBeenCalled();
   });
 
   it("persists sessions on unmount", () => {

@@ -99,6 +99,10 @@ def test_all_dependency_targets_require_plugin_wording():
         target.entity_id
         for target in resolve_target_entities("Job DSL Plugin", plugin_lookup)
     ] == ["job-dsl"]
+    assert [
+        target.entity_id
+        for target in resolve_target_entities("legacy-plugin", plugin_lookup)
+    ] == ["legacy-plugin"]
 
 
 def test_hyphenated_plugin_names_accept_hyphen_and_space_forms():

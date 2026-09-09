@@ -6,7 +6,7 @@ Beginners often struggle to take their first steps with Jenkins’ documentation
 
 The plugin is designed to reduce the learning curve for newcomers while also improving accessibility and productivity for experienced users.
 
-This plugin was developed as part of a Google Summer of Code 2025 project.
+This plugin was developed as part of a Google Summer of Code 2025 and 2026 project. 
 
 ## Prerequisites
 
@@ -22,9 +22,16 @@ sudo apt install -y make cmake gcc g++ python3.11 python3.11-venv python3.11-dev
 
 # macOS
 brew install cmake python@3.11 && xcode-select --install
+
+# Windows (PowerShell)
+winget install Python.Python.3.11 Kitware.CMake
 ```
 
 ## Getting Started
+
+The plugin can be installed from **Manage Jenkins > Plugins**. The plugin provides the chatbot interface, while the FastAPI service runs separately.
+For a local installation, clone this repository, start the backend with `make api`, and configure the backend URL under **Manage Jenkins > System**.
+See the [plugin installation guide](docs/plugin-installation.md) for the complete setup and deployment instructions.
 
 There are two ways to run the API locally, depending on your use case:
 
@@ -69,9 +76,9 @@ The API will be available at `http://127.0.0.1:8000`.
 
 **What works:** Everything, including actual chat completions with the local LLM
 
----
-
 See [docs/README.md](docs/README.md) for detailed explanations.
+
+---
 
 ## 🎥 Setup Video Tutorial
 
@@ -86,6 +93,9 @@ The tutorial shows how to fork the repo, set up the backend, download the LLM mo
 - **Symptom**: The application appears "stuck" or frozen during the first run of the data pipeline or API.
 - **Cause**: The system is downloading the embedding model (`all-MiniLM-L6-v2`, ~80MB) or initializing the LLM.
 - **Solution**: This is normal behavior for the first run. Please wait for a few minutes. Ensure you have a stable internet connection.
+- **Installed plugin cannot connect**: Confirm that the FastAPI service is
+  running with `make api`, then check the backend URL under **Manage Jenkins >
+  System**. The configured URL must be reachable from the Jenkins instance.
 
 ### Python Version Mismatches
 

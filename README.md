@@ -23,8 +23,6 @@ sudo apt install -y make cmake gcc g++ python3.11 python3.11-venv python3.11-dev
 # macOS
 brew install cmake python@3.11 && xcode-select --install
 
-# Windows (PowerShell)
-winget install Python.Python.3.11 Kitware.CMake
 ```
 
 ## Getting Started

@@ -89,8 +89,7 @@ API available at `http://127.0.0.1:8000`
 
 ### 8. Run the Frontend or Jenkins Plugin
 
-For frontend-only development, run the Vite development server in a new
-terminal:
+For frontend-only development, run the Vite development server in a new terminal:
 
 ```bash
 cd frontend
@@ -100,8 +99,7 @@ npm run dev
 
 Frontend available at `http://localhost:5173`.
 
-To test the bundled frontend in Jenkins, keep the backend running and start the
-plugin from the repository root in a second terminal:
+To test the bundled frontend in Jenkins, keep the backend running and start the plugin from the repository root in a second terminal:
 
 ```bash
 mvn hpi:run
@@ -109,9 +107,7 @@ mvn hpi:run
 
 ## Verifying Your Setup
 
-When using the Vite development server, open `http://localhost:5173`.
-When using the bundled plugin, open the Jenkins URL shown by Maven and send a
-test message from the chatbot panel.
+When using the Vite development server, open `http://localhost:5173`. When using the bundled plugin, open the Jenkins URL shown by Maven and send a test message from the chatbot panel.
 You should see a response within 30 seconds with GPU acceleration enabled.
 
 You can also verify the API directly:

@@ -40,16 +40,15 @@ In this doc file we'll use these targets, without going into the details of the 
 
 For the setup you can follow the [Setup Guides](setup/README.md).
 For macOS/Apple Silicon contributors, see the [macOS/Apple Silicon Setup Guide](setup/macos.md).
-For installing the released plugin and configuring its backend, see the
-[plugin installation guide](plugin-installation.md).
+For installing the released plugin and configuring its backend, see the [plugin installation guide](plugin-installation.md).
 
 Documentation for the main chatbot features is available here:
 
 - [LLM-as-a-Judge evaluation pipeline](chatbot-core/eval/llm-as-a-judge.md)
-- [GraphRAG documentation and cleanup](https://github.com/jenkinsci/resources-ai-chatbot-plugin/pull/449)
-- [Diagnosis Agent documentation and cleanup](https://github.com/jenkinsci/resources-ai-chatbot-plugin/pull/453)
-- [Third-party provider integration documentation](https://github.com/jenkinsci/resources-ai-chatbot-plugin/pull/455)
-- [Backend setup and connection-status UX](https://github.com/jenkinsci/resources-ai-chatbot-plugin/pull/475)
+- [GraphRAG documentation](chatbot-core/rag/graph.md)
+- [Diagnosis Agent documentation](chatbot-core/diagnosis-agent.md)
+- [Third-party provider integration](chatbot-core/litellm.md)
+- [Plugin installation and backend setup](plugin-installation.md)
 
 ## Data Pipeline
 

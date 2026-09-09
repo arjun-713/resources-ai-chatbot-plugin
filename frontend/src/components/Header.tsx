@@ -47,8 +47,8 @@ export const Header = ({
     useState(false);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const lastCheckedLabel = lastBackendCheck
-    ? `Last checked: ${lastBackendCheck.toLocaleTimeString()}`
-    : "Last check pending";
+    ? `${getChatbotText("lastChecked")} ${lastBackendCheck.toLocaleTimeString()}`
+    : getChatbotText("lastCheckPending");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -87,8 +87,8 @@ export const Header = ({
           tabIndex={0}
           aria-label={
             isBackendConnected
-              ? "Assistant service connected"
-              : "Assistant service unavailable"
+              ? getChatbotText("backendConnected")
+              : getChatbotText("backendNotConnected")
           }
         >
           <span style={chatbotStyles.backendStatusDot(isBackendConnected)} />
@@ -96,8 +96,8 @@ export const Header = ({
             <span role="tooltip" style={chatbotStyles.backendStatusTooltip}>
               <span>
                 {isBackendConnected
-                  ? "Assistant service connected"
-                  : "⚠ Assistant service unavailable"}
+                  ? getChatbotText("backendConnected")
+                  : getChatbotText("backendNotConnected")}
               </span>
               <span>{lastCheckedLabel}</span>
             </span>

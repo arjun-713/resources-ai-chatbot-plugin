@@ -293,11 +293,7 @@ def chatbot_reply(session_id: str, request: ChatRequest, _background_tasks: Back
             detail="Session not found.",
         )
     message = request.message.strip() or DEFAULT_LOG_ANALYSIS_MESSAGE
-    reply = get_chatbot_reply(
-        session_id,
-        message,
-        log_context=request.log_context,
-    )
+    reply = get_chatbot_reply(session_id, message)
     _background_tasks.add_task(
         persist_session,
         session_id,
@@ -315,7 +311,6 @@ async def chatbot_reply_with_files(
     background_tasks: BackgroundTasks,
     message: str = Form(...),
     files: Optional[List[UploadFile]] = File(None),
-    log_context: Optional[str] = Form(None),
 ):
     """
     POST endpoint to handle chatbot replies with file uploads.
@@ -332,7 +327,6 @@ async def chatbot_reply_with_files(
         session_id (str): The ID of the session from the URL path.
         message (str): The user's message (form field).
         files (List[UploadFile]): Optional list of uploaded files.
-        log_context (Optional[str]): Sanitized Jenkins log excerpt.
 
     Returns:
         ChatResponse: The chatbot's generated reply.
@@ -386,8 +380,7 @@ async def chatbot_reply_with_files(
         get_chatbot_reply,
         session_id,
         final_message,
-        processed_files if processed_files else None,
-        log_context,
+        processed_files if processed_files else None
     )
     background_tasks.add_task(
         persist_session,

@@ -11,8 +11,6 @@ import { callChatbotApi } from "../utils/callChatbotApi";
 import { getChatbotText } from "../data/chatbotTexts";
 import { API_BASE_URL, CHATBOT_API_TIMEOUTS_MS } from "../config";
 
-declare const global: typeof globalThis;
-
 jest.mock("uuid", () => ({
   v4: () => "mock-uuid",
 }));

@@ -21,6 +21,7 @@ from api.prompts.prompts import (
 
 from api.services.memory import get_session, get_session_async
 from api.services.file_service import format_file_context
+from api.tools.log_parser import extract_relevant_log_lines
 from api.tools.sanitizer import sanitize_logs
 from api.tools.tools import TOOL_REGISTRY
 from api.tools.utils import (
@@ -45,12 +46,6 @@ SOURCE_TOP_K_CONFIG_KEYS = {
     "docs": "top_k_docs",
     "discourse": "top_k_discourse",
 }
-
-LOG_ANALYSIS_PATTERN = re.compile(
-    r"Here are the last \d+ characters of the log:\s*```\s*(.*?)\s*```\s*(.*)",
-    re.DOTALL
-)
-
 
 def _sanitize_log_payload(payload: object) -> str:
     """
@@ -94,7 +89,11 @@ def get_chatbot_reply(
     # Process file context if files are provided
     context = _process_file_context(context, files)
 
-    prompt = build_prompt(user_input, context, memory)
+    prompt = build_prompt(
+        user_input,
+        context,
+        memory,
+    )
 
     logger.debug("Generating answer with prompt: %s",
                  _sanitize_log_payload(prompt))
@@ -107,6 +106,29 @@ def get_chatbot_reply(
     memory.chat_memory.add_ai_message(reply)
 
     return ChatResponse(reply=reply)
+
+
+def prepare_log_context(log_text: str) -> str:
+    """
+    Extract and sanitize relevant build-log lines for display and diagnosis.
+
+    Args:
+        log_text (str): Raw Jenkins build log text.
+
+    Returns:
+        str: Sanitized relevant log excerpt, or an empty string.
+    """
+    if not log_text or not log_text.strip():
+        return ""
+
+    relevant_log = extract_relevant_log_lines(log_text)
+    sanitized_log = sanitize_logs(relevant_log)
+    logger.info(
+        "Prepared build log context: raw=%d chars, sanitized excerpt=%d chars",
+        len(log_text),
+        len(sanitized_log),
+    )
+    return sanitized_log
 
 
 def _process_file_context(context: str, files: Optional[List[FileAttachment]]) -> str:
@@ -492,8 +514,9 @@ def generate_answer(prompt: str, max_tokens: Optional[int] = None) -> str:
             "LLM provider not available - returning fallback response")
         return "LLM is not available. Please install llama-cpp-python and configure a model."
     try:
+        sanitized_prompt = sanitize_logs(prompt)
         return llm_provider.generate(
-            prompt=prompt,
+            prompt=sanitized_prompt,
             max_tokens=max_tokens or llm_config["max_tokens"])
     except (ImportError, AttributeError) as e:
         logger.error("LLM provider unavailable: %s", e)
@@ -530,8 +553,9 @@ async def generate_answer_stream(
         yield "LLM is not available. Please install llama-cpp-python and configure a model."
         return
     try:
+        sanitized_prompt = sanitize_logs(prompt)
         async for token in llm_provider.generate_stream(
-            prompt=prompt,
+            prompt=sanitized_prompt,
             max_tokens=max_tokens or llm_config["max_tokens"]
         ):
             yield token

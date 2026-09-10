@@ -14,6 +14,7 @@ from api.config.loader import CONFIG
 from api.config.env_sync import sync_provider_env
 from api.config.providers import load_provider_catalog
 from api.services.memory import cleanup_expired_sessions, reload_persisted_sessions
+from rag.graph.build_graph_artifacts import refresh_graph_if_stale
 from utils import LoggerFactory
 
 logger = LoggerFactory.get_logger(__name__)
@@ -46,6 +47,8 @@ async def lifespan(app_instance: FastAPI):  # pylint: disable=unused-argument
     sync_provider_env(load_provider_catalog())
     loaded = reload_persisted_sessions()
     logger.info("Restored %s persisted session(s) from disk", loaded)
+
+    refresh_graph_if_stale(logger)
 
     # Startup: Create the cleanup task
     cleanup_task = asyncio.create_task(periodic_session_cleanup())

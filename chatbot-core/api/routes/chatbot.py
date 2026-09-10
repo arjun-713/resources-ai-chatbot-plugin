@@ -36,6 +36,8 @@ from fastapi import (
 from api.models.schemas import (
     ChatRequest,
     ChatResponse,
+    LogPreviewRequest,
+    LogPreviewResponse,
     DeleteResponse,
     MessageHistoryResponse,
     SessionResponse,
@@ -46,6 +48,7 @@ from api.services.chat_service import (
     get_chatbot_reply,
     get_chatbot_reply_stream,
     provider_manager,
+    prepare_log_context,
 )
 from api.services.memory import (
     delete_session,
@@ -62,6 +65,7 @@ from api.services.file_service import (
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+DEFAULT_LOG_ANALYSIS_MESSAGE = "Analyze the provided failed Jenkins build logs."
 
 # --- Optional dependency checks (feature flags) ---
 LLM_AVAILABLE = False  # pylint: disable=invalid-name
@@ -118,6 +122,12 @@ async def _process_uploaded_files(
             await upload_file.close()
 
     return processed_files
+
+
+@router.post("/log-preview", response_model=LogPreviewResponse)
+def log_preview(request: LogPreviewRequest) -> LogPreviewResponse:
+    """Extract and sanitize Jenkins output without invoking the LLM."""
+    return LogPreviewResponse(preview=prepare_log_context(request.log_text))
 
 
 # =========================
@@ -327,13 +337,15 @@ def chatbot_reply(session_id: str, request: ChatRequest, _background_tasks: Back
             status_code=404,
             detail="Session not found.",
         )
+    message = request.message.strip() or DEFAULT_LOG_ANALYSIS_MESSAGE
+
     try:
         provider = provider_manager.resolve(request.provider)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     with provider_manager.activate_provider(provider):
-        reply = get_chatbot_reply(session_id, request.message)
+        reply = get_chatbot_reply(session_id, message)
     _background_tasks.add_task(
         persist_session,
         session_id,

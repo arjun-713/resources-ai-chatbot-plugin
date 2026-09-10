@@ -348,7 +348,6 @@ describe("chatbotApi", () => {
         "Test message",
         files,
         controller.signal,
-        "[ERROR] deployment failed",
       );
 
       const fetchCall = (global.fetch as jest.Mock).mock.calls[0];

@@ -218,7 +218,6 @@ describe("Chatbot component", () => {
         "session-1",
         "Hello bot",
         expect.anything(),
-        undefined,
       );
     });
   });

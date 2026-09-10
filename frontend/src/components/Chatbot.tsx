@@ -5,6 +5,7 @@ import { type ChatSession } from "../model/ChatSession";
 import {
   fetchChatbotReply,
   fetchChatbotReplyWithFiles,
+  fetchLogPreview,
   createChatSession,
   deleteChatSession,
   fetchSupportedExtensions,
@@ -28,12 +29,13 @@ import { v4 as uuidv4 } from "uuid";
 import { ProactiveToast } from "./Toast";
 import { useContextObserver } from "../utils/useContextObserver";
 
+const ANALYZE_BUILD_MESSAGE = "Analyze this Jenkins Build Failure.";
+const ANALYZE_BUILD_INPUT_PREFIX = `${ANALYZE_BUILD_MESSAGE}\n\n`;
+const BUILD_ANALYSIS_ACTION_DELAY_MS = 2000;
+
 /**
  * Chatbot is the core component responsible for managing the chatbot display.
  */
-
-const LOG_PATTERN =
-  /(Started by user|Running as SYSTEM|Building in workspace|FATAL:|ERROR:|Exception:|Stack trace|Build step .*? marked build as failure)/i;
 
 export const Chatbot = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -52,10 +54,29 @@ export const Chatbot = () => {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [supportedExtensions, setSupportedExtensions] =
     useState<SupportedExtensions | null>(null);
+  const [pendingLogContext, setPendingLogContext] = useState<string | null>(
+    null,
+  );
+  const [showBuildAnalysisAction, setShowBuildAnalysisAction] = useState(false);
+  const [analysisActionSuppressed, setAnalysisActionSuppressed] =
+    useState(false);
   const [providers, setProviders] = useState<ProviderMetadata[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("local");
 
-  const { showToast, setShowToast } = useContextObserver(isOpen);
+  const { buildFailed, buildContext, showToast, setShowToast } =
+    useContextObserver(isOpen);
+
+  useEffect(() => {
+    if (!buildFailed || !isOpen || input.trim() || analysisActionSuppressed) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowBuildAnalysisAction(true);
+    }, BUILD_ANALYSIS_ACTION_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [analysisActionSuppressed, buildFailed, input, isOpen]);
 
   /**
    * Fetch supported file extensions on component mount.
@@ -80,10 +101,7 @@ export const Chatbot = () => {
         return;
       }
       setProviders(configuredProviders);
-      if (
-        configuredProviders.length > 0 &&
-        !configuredProviders.some((provider) => provider.id === "local")
-      ) {
+      if (!configuredProviders.some((provider) => provider.id === "local")) {
         setSelectedProviderId(configuredProviders[0].id);
       }
     };
@@ -138,6 +156,7 @@ export const Chatbot = () => {
     const updatedSessions = sessions.filter((s) => s.id !== sessionIdToDelete);
     setSessions(updatedSessions);
     setIsPopupOpen(false);
+    setPendingLogContext(null);
     if (updatedSessions.length === 0) {
       setCurrentSessionId(null);
     } else {
@@ -166,6 +185,8 @@ export const Chatbot = () => {
 
     setSessions((prev) => [newSession, ...prev]);
     setCurrentSessionId(id);
+    setPendingLogContext(null);
+    setAnalysisActionSuppressed(false);
   };
 
   const appendMessageToCurrentSession = (message: Message) => {
@@ -178,30 +199,84 @@ export const Chatbot = () => {
     );
   };
 
+  const handleInputChange = (value: string) => {
+    setInput(value);
+    if (value.trim()) {
+      setShowBuildAnalysisAction(false);
+    }
+    if (!value.trim()) {
+      setAnalysisActionSuppressed(false);
+    }
+    setPendingLogContext((currentContext) =>
+      currentContext && !value.includes(currentContext) ? null : currentContext,
+    );
+  };
+
   /**
    * Handles the send process in a chat session.
    */
 
-  const sendMessage = async () => {
-    const trimmed = input.trim();
+  const sendMessageWithPayload = async (messageOverride?: string) => {
+    const trimmed = (messageOverride ?? input).trim();
     const hasFiles = attachedFiles.length > 0;
+    let logContext =
+      pendingLogContext && trimmed.includes(pendingLogContext)
+        ? pendingLogContext
+        : undefined;
 
     if (!currentSessionId) return;
     if (!trimmed && !hasFiles) return;
 
+    let messageForRequest = trimmed;
+    if (!logContext && trimmed.startsWith(ANALYZE_BUILD_INPUT_PREFIX)) {
+      const editedLog = trimmed.slice(ANALYZE_BUILD_INPUT_PREFIX.length).trim();
+      if (editedLog) {
+        const refreshedLogContext = await fetchLogPreview(editedLog);
+        if (refreshedLogContext) {
+          logContext = refreshedLogContext;
+          messageForRequest = ANALYZE_BUILD_MESSAGE;
+        }
+      }
+    }
+
+    const messageWithoutLog = logContext
+      ? messageForRequest.replace(logContext, "").trim()
+      : messageForRequest;
+    const isBuildAnalysis = trimmed.startsWith(ANALYZE_BUILD_MESSAGE);
+    const buildDescription =
+      isBuildAnalysis && buildContext
+        ? `\nBuild #${buildContext.buildNumber ?? "unknown"}${
+            buildContext.displayName ? ` (${buildContext.displayName})` : ""
+          }`
+        : "";
+    const requestMessage = `${
+      messageWithoutLog || ANALYZE_BUILD_MESSAGE
+    }${buildDescription}`;
+
     const fileAttachments = attachedFiles.map(fileToAttachment);
+    const displayMessage = logContext
+      ? `${messageWithoutLog || ANALYZE_BUILD_MESSAGE}\n\n${logContext}`
+      : messageWithoutLog || (hasFiles ? "📎 Attached file(s)" : "");
 
     const userMessage: Message = {
       id: uuidv4(),
       sender: "user",
-      text: trimmed || (hasFiles ? "📎 Attached file(s)" : ""),
+      text: displayMessage,
       files: fileAttachments.length > 0 ? fileAttachments : undefined,
     };
 
     setInput("");
-    const filesToSend = [...attachedFiles];
+    setAnalysisActionSuppressed(false);
+    setPendingLogContext(null);
+    const diagnosisFile = logContext
+      ? new File([logContext], "jenkins-build.log", { type: "text/plain" })
+      : null;
+    const filesToSend = diagnosisFile
+      ? [...attachedFiles, diagnosisFile]
+      : [...attachedFiles];
     setAttachedFiles([]);
-    const isLogAnalysis = LOG_PATTERN.test(trimmed);
+    const isLogAnalysis =
+      Boolean(logContext) || messageForRequest.includes("build failure");
     const statusMessage = isLogAnalysis
       ? getChatbotText("analyzingLogs")
       : getChatbotText("generatingMessage");
@@ -221,34 +296,19 @@ export const Chatbot = () => {
     try {
       const botReply =
         filesToSend.length > 0
-          ? selectedProviderId === "local"
-            ? await fetchChatbotReplyWithFiles(
-                currentSessionId,
-                trimmed || "Please analyze the attached file(s).",
-                filesToSend,
-                controller.signal,
-              )
-            : await fetchChatbotReplyWithFiles(
-                currentSessionId,
-                trimmed || "Please analyze the attached file(s).",
-                filesToSend,
-                controller.signal,
-                selectedProviderId,
-              )
-          : controller.signal
-            ? selectedProviderId === "local"
-              ? await fetchChatbotReply(
-                  currentSessionId,
-                  trimmed,
-                  controller.signal,
-                )
-              : await fetchChatbotReply(
-                  currentSessionId,
-                  trimmed,
-                  controller.signal,
-                  selectedProviderId,
-                )
-            : await fetchChatbotReply(currentSessionId, trimmed);
+          ? await fetchChatbotReplyWithFiles(
+              currentSessionId,
+              requestMessage || "Please analyze the attached file(s).",
+              filesToSend,
+              controller.signal,
+              selectedProviderId,
+            )
+          : await fetchChatbotReply(
+              currentSessionId,
+              requestMessage,
+              controller.signal,
+              selectedProviderId,
+            );
       appendMessageToCurrentSession(botReply);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
@@ -266,6 +326,10 @@ export const Chatbot = () => {
         ),
       );
     }
+  };
+
+  const sendMessage = async () => {
+    await sendMessageWithPayload();
   };
   const handleCancelMessage = () => {
     abortControllerRef.current?.abort();
@@ -318,6 +382,8 @@ export const Chatbot = () => {
   const onSwitchChat = (chatSessionId: string) => {
     openSideBar();
     setCurrentSessionId(chatSessionId);
+    setPendingLogContext(null);
+    setAnalysisActionSuppressed(false);
   };
 
   const openConfirmDeleteChatPopup = (chatSessionId: string) => {
@@ -326,46 +392,54 @@ export const Chatbot = () => {
   };
 
   const getConsoleLogContext = (): string => {
-    // 1. Try standard Jenkins console selector
     const consoleElement = document.querySelector("pre.console-output");
 
     if (!consoleElement || !consoleElement.textContent) {
       return "";
     }
 
-    const fullLog = consoleElement.textContent;
-
-    // 2. Truncate if too large (e.g., last 5000 characters)
-    // We only need the error at the end, and we don't want to overload the LLM.
-    const maxLength = 5000;
-    if (fullLog.length > maxLength) {
-      return "...(logs truncated due to size)...\n" + fullLog.slice(-maxLength);
-    }
-
-    return fullLog;
+    return consoleElement.textContent;
   };
 
-  /**
-   * Handlers for Proactive Toast
-   */
-  const handleToastConfirm = () => {
+  const prepareBuildFailureAnalysis = async () => {
     setShowToast(false);
+    setShowBuildAnalysisAction(false);
+    setAnalysisActionSuppressed(true);
+
+    if (!isOpen) {
+      const id = await createChatSession();
+      if (!id) {
+        console.error("Failed to create a session for build analysis.");
+        return;
+      }
+
+      const newSession: ChatSession = {
+        id,
+        messages: [],
+        createdAt: new Date().toISOString(),
+        isLoading: false,
+        loadingStatus: null,
+      };
+      setSessions((prev) => [newSession, ...prev]);
+      setCurrentSessionId(id);
+    }
+
     setIsOpen(true);
 
-    // 1. Scrape the logs
     const logs = getConsoleLogContext();
 
-    // 2. Construct the prompt
     if (logs) {
-      const messageWithContext = `I found a build failure. Here are the last 5000 characters of the log:\n\n\`\`\`\n${logs}\n\`\`\`\n\nCan you analyze this error?`;
-      setInput(messageWithContext);
-
-      // Optional: If you want to send it immediately without clicking the arrow button:
-      // sendMessage(messageWithContext);
+      const preview = await fetchLogPreview(logs);
+      if (preview) {
+        setPendingLogContext(preview);
+        setInput(`${ANALYZE_BUILD_MESSAGE}\n\n${preview}`);
+      } else {
+        setPendingLogContext(null);
+        setInput(ANALYZE_BUILD_MESSAGE);
+      }
     } else {
-      setInput(
-        "I noticed a build failure, but I couldn't read the logs automatically. Can you paste them?",
-      );
+      setPendingLogContext(null);
+      setInput(ANALYZE_BUILD_MESSAGE);
     }
   };
 
@@ -423,15 +497,19 @@ export const Chatbot = () => {
   return (
     <>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setShowBuildAnalysisAction(false);
+        }}
         style={chatbotStyles.toggleButton}
       >
         {getChatbotText("toggleButtonLabel")}
       </button>
       {showToast && !isOpen && (
         <ProactiveToast
-          onConfirm={handleToastConfirm}
+          onConfirm={prepareBuildFailureAnalysis}
           onDismiss={handleToastDismiss}
+          buildContext={buildContext}
         />
       )}
 
@@ -471,7 +549,7 @@ export const Chatbot = () => {
               />
               <Input
                 input={input}
-                setInput={setInput}
+                setInput={handleInputChange}
                 onSend={sendMessage}
                 onCancel={handleCancelMessage}
                 isLoading={getChatLoading()}
@@ -480,6 +558,13 @@ export const Chatbot = () => {
                 onFileRemoved={handleFileRemoved}
                 enableFileUpload={true}
                 validateFile={handleValidateFile}
+                showBuildFailureAction={
+                  showBuildAnalysisAction &&
+                  buildFailed &&
+                  !input.trim() &&
+                  !analysisActionSuppressed
+                }
+                onAnalyzeBuild={prepareBuildFailureAnalysis}
               />
             </>
           ) : (

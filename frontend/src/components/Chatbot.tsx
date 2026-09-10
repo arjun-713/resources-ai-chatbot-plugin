@@ -301,14 +301,20 @@ export const Chatbot = () => {
               requestMessage || "Please analyze the attached file(s).",
               filesToSend,
               controller.signal,
-              selectedProviderId,
+              ...(selectedProviderId === "local" ? [] : [selectedProviderId]),
             )
-          : await fetchChatbotReply(
-              currentSessionId,
-              requestMessage,
-              controller.signal,
-              selectedProviderId,
-            );
+          : selectedProviderId === "local"
+            ? await fetchChatbotReply(
+                currentSessionId,
+                requestMessage,
+                controller.signal,
+              )
+            : await fetchChatbotReply(
+                currentSessionId,
+                requestMessage,
+                controller.signal,
+                selectedProviderId,
+              );
       appendMessageToCurrentSession(botReply);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {

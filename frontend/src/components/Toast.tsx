@@ -1,15 +1,22 @@
 import { chatbotStyles } from "../styles/styles";
 import { Bot, Wrench } from "lucide-react";
+import type { BuildContext } from "../model/BuildContext";
 
 interface ProactiveToastProps {
   onConfirm: () => void;
   onDismiss: () => void;
+  buildContext?: BuildContext | null;
 }
 
 export const ProactiveToast = ({
   onConfirm,
   onDismiss,
+  buildContext,
 }: ProactiveToastProps) => {
+  const buildLabel = buildContext?.buildNumber
+    ? `Build #${buildContext.buildNumber} failed`
+    : "Build failure detected";
+
   return (
     <div style={chatbotStyles.toastContainer}>
       <div style={chatbotStyles.toastHeader}>
@@ -17,9 +24,7 @@ export const ProactiveToast = ({
         <span>Jenkins Assistant</span>
       </div>
       <div style={chatbotStyles.toastContent}>
-        <strong style={chatbotStyles.toastFailureText}>
-          Build failure detected
-        </strong>
+        <strong style={chatbotStyles.toastFailureText}>{buildLabel}</strong>
         <span>Would you like Jenkins Assistant to analyze the logs?</span>
       </div>
       <div style={chatbotStyles.toastActions}>

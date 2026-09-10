@@ -110,6 +110,7 @@ describe("Chatbot component", () => {
     sessionStorage.clear();
     (contextObserver.useContextObserver as jest.Mock).mockReturnValue({
       buildFailed: false,
+      buildContext: null,
       showToast: false,
       setShowToast: jest.fn(),
     });
@@ -239,6 +240,10 @@ describe("Chatbot component", () => {
     sessionStorage.setItem("chatbot-last-session-id", "session-1");
     (contextObserver.useContextObserver as jest.Mock).mockReturnValue({
       buildFailed: true,
+      buildContext: {
+        buildNumber: 42,
+        displayName: "example #42",
+      },
       showToast: false,
       setShowToast: jest.fn(),
     });
@@ -276,11 +281,11 @@ describe("Chatbot component", () => {
     await waitFor(() =>
       expect(chatbotApi.fetchChatbotReply).toHaveBeenCalledWith(
         "session-1",
-        "Analyze this Jenkins Build Failure.",
+        "Analyze this Jenkins Build Failure.\nBuild #42 (example #42)",
         expect.anything(),
-        undefined,
       ),
     );
+    expect(chatbotApi.fetchChatbotReplyWithFiles).not.toHaveBeenCalled();
   });
 
   it("persists sessions on unmount", () => {

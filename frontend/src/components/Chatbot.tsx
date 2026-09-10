@@ -64,7 +64,8 @@ export const Chatbot = () => {
   const [analysisActionSuppressed, setAnalysisActionSuppressed] =
     useState(false);
 
-  const { buildFailed, showToast, setShowToast } = useContextObserver(isOpen);
+  const { buildFailed, buildContext, showToast, setShowToast } =
+    useContextObserver(isOpen);
 
   useEffect(() => {
     if (!buildFailed || !isOpen || input.trim() || analysisActionSuppressed) {
@@ -223,6 +224,16 @@ export const Chatbot = () => {
     }
 
     const messageWithoutLog = removeLogContext(messageForRequest, logContext);
+    const isBuildAnalysis = trimmed.startsWith(ANALYZE_BUILD_MESSAGE);
+    const buildDescription =
+      isBuildAnalysis && buildContext
+        ? `\nBuild #${buildContext.buildNumber ?? "unknown"}${
+            buildContext.displayName ? ` (${buildContext.displayName})` : ""
+          }`
+        : "";
+    const requestMessage = `${
+      messageWithoutLog || ANALYZE_BUILD_MESSAGE
+    }${buildDescription}`;
 
     const fileAttachments = attachedFiles.map(fileToAttachment);
     const displayMessage =
@@ -239,7 +250,12 @@ export const Chatbot = () => {
     setInput("");
     setAnalysisActionSuppressed(false);
     setPendingLogContext(null);
-    const filesToSend = [...attachedFiles];
+    const diagnosisFile = logContext
+      ? new File([logContext], "jenkins-build.log", { type: "text/plain" })
+      : null;
+    const filesToSend = diagnosisFile
+      ? [...attachedFiles, diagnosisFile]
+      : [...attachedFiles];
     setAttachedFiles([]);
     const isLogAnalysis =
       Boolean(logContext) || messageForRequest.includes("build failure");
@@ -264,16 +280,14 @@ export const Chatbot = () => {
         filesToSend.length > 0
           ? await fetchChatbotReplyWithFiles(
               currentSessionId,
-              messageWithoutLog || "Please analyze the attached file(s).",
+              requestMessage || "Please analyze the attached file(s).",
               filesToSend,
               controller.signal,
-              logContext,
             )
           : await fetchChatbotReply(
               currentSessionId,
-              messageWithoutLog,
+              requestMessage,
               controller.signal,
-              logContext,
             );
       appendMessageToCurrentSession(botReply);
     } catch (error) {
@@ -465,6 +479,7 @@ export const Chatbot = () => {
         <ProactiveToast
           onConfirm={prepareBuildFailureAnalysis}
           onDismiss={handleToastDismiss}
+          buildContext={buildContext}
         />
       )}
 

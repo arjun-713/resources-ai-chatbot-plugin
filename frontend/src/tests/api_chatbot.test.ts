@@ -353,9 +353,8 @@ describe("chatbotApi", () => {
 
       const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
       expect(fetchCall[1]?.body).toBeInstanceOf(FormData);
-      expect((fetchCall[1]?.body as FormData).get("log_context")).toBe(
-        "[ERROR] deployment failed",
-      );
+      expect((fetchCall[1]?.body as FormData).get("log_context")).toBeNull();
+      expect((fetchCall[1]?.body as FormData).get("files")).toBe(files[0]);
     });
   });
 });

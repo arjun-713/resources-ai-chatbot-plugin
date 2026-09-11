@@ -122,9 +122,10 @@ async def _process_uploaded_files(
                 detail="Unable to process uploaded file.",
             ) from exc
         except Exception as exc:
+            logger.error("Unexpected file processing error: %s", exc, exc_info=True)
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to process file: {type(exc).__name__}",
+                detail="Unable to process uploaded file.",
             ) from exc
         finally:
             await upload_file.close()

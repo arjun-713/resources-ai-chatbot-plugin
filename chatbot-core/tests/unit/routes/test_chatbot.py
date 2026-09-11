@@ -147,6 +147,29 @@ def test_file_processing_error_hides_internal_details(
     assert response.json() == {"detail": "Unable to process uploaded file."}
     assert "internal parser detail" not in response.text
 
+
+def test_unexpected_file_error_hides_exception_type(
+    client, mock_session_exists, mocker
+):
+    """Unexpected file failures return a safe client-facing message."""
+    mock_session_exists.return_value = True
+    mocker.patch(
+        "api.routes.chatbot.process_uploaded_file",
+        side_effect=RuntimeError("unexpected parser detail"),
+    )
+
+    response = client.post(
+        "/sessions/test-session-id/message/upload",
+        data={"message": "Analyze this file"},
+        files={"files": ("build.log", b"build output", "text/plain")},
+    )
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Unable to process uploaded file."}
+    assert "RuntimeError" not in response.text
+    assert "unexpected parser detail" not in response.text
+
+
 def test_chatbot_reply_invalid_session(client, mock_session_exists):
     """Testing that sending a message to an invalid session returns 404."""
     mock_session_exists.return_value = False

@@ -227,6 +227,22 @@ def test_websocket_valid_json_streams_response(
         assert end == {"end": True}
 
 
+def test_websocket_provider_error_hides_exception_details(
+    client, mock_session_exists, mock_get_chatbot_reply_stream
+):
+    """Provider failures return a safe error without exception details."""
+    mock_session_exists.return_value = True
+    mock_get_chatbot_reply_stream.side_effect = ValueError(
+        "provider secret or internal detail"
+    )
+
+    with client.websocket_connect("/sessions/test-session-id/stream") as ws:
+        ws.send_json({"message": "Request"})
+        error = ws.receive_json()
+        assert error == {"error": "Unable to generate a response."}
+        assert "provider secret" not in str(error)
+
+
 def test_websocket_activates_selected_provider(
     client, mock_session_exists, mock_get_chatbot_reply_stream, mocker
 ):

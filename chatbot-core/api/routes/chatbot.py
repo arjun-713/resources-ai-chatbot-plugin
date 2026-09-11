@@ -207,8 +207,14 @@ async def chatbot_stream(websocket: WebSocket, session_id: str):
                             json.dumps({"token": token})
                         )
             except ValueError as exc:
+                logger.error(
+                    "WebSocket provider error for session %s: %s",
+                    session_id,
+                    exc,
+                    exc_info=True,
+                )
                 await websocket.send_text(
-                    json.dumps({"error": str(exc)})
+                    json.dumps({"error": "Unable to generate a response."})
                 )
                 continue
 

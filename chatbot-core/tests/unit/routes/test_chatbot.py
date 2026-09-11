@@ -1,5 +1,7 @@
 """Unit Tests for FastAPI routes."""
 
+from api.services.file_service import FileProcessingError
+
 def test_start_chat(client, mock_init_session):
     """Testing that creating a session returns session ID and location."""
     mock_init_session.return_value = "test-session-id"
@@ -79,6 +81,27 @@ def test_log_preview_extracts_and_sanitizes_console_output(client):
     assert response.status_code == 200
     assert "PASSWORD=[REDACTED]" in response.json()["preview"]
     assert "[ERROR] deployment failed" in response.json()["preview"]
+
+
+def test_file_processing_error_hides_internal_details(
+    client, mock_session_exists, mocker
+):
+    """File-processing failures return a safe client-facing message."""
+    mock_session_exists.return_value = True
+    mocker.patch(
+        "api.routes.chatbot.process_uploaded_file",
+        side_effect=FileProcessingError("internal parser detail"),
+    )
+
+    response = client.post(
+        "/sessions/test-session-id/message/upload",
+        data={"message": "Analyze this file"},
+        files={"files": ("build.log", b"build output", "text/plain")},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Unable to process uploaded file."}
+    assert "internal parser detail" not in response.text
 
 def test_chatbot_reply_invalid_session(client, mock_session_exists):
     """Testing that sending a message to an invalid session returns 404."""

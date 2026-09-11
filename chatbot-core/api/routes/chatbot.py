@@ -112,7 +112,11 @@ async def _process_uploaded_files(
             )
             processed_files.append(FileAttachment(**processed))
         except FileProcessingError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            logger.warning("File processing failed: %s", exc, exc_info=True)
+            raise HTTPException(
+                status_code=400,
+                detail="Unable to process uploaded file.",
+            ) from exc
         except Exception as exc:
             raise HTTPException(
                 status_code=500,
